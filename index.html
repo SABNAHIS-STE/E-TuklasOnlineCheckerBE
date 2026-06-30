@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>E-Tuklas Online Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+<!-- React / Babel (in-browser transpile, matches main portal architecture) -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<!-- Firebase (compat SDK, same pattern as main portal) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+<!-- Docx parsing -->
+<script src="https://unpkg.com/mammoth@1.7.0/mammoth.browser.min.js"></script>
+
+<style>
+/* ══════════════════════════════════════════
+   DESIGN TOKENS — mirrored from E-Tuklas STE Portal
+   so the Checker reads as the same family of product
+══════════════════════════════════════════ */
+:root {
+  --ink:#0d0f14; --ink-2:#1e2130; --ink-3:#2e3250;
+  --slate:#4a5174; --muted:#7c85a8;
+  --border:#e2e5f0; --surface:#f5f6fa; --white:#ffffff;
+  --gold:#c9a227; --gold-light:#f0d882; --gold-bg:#fdf8ec;
+  --teal:#1a7f6e; --teal-light:#e6f5f2;
+  --red:#c0392b; --red-light:#fdf0ee;
+  --green:#1a7f4a; --green-light:#e6f5ee;
+  --blue:#1a5fa8; --blue-light:#e6f0fd;
+  --purple:#6d3fa8; --purple-light:#f3eeff;
+
+  --radius: 10px; --radius-lg: 16px; --radius-xl: 22px;
+  --shadow: 0 2px 12px rgba(13,15,20,0.08);
+  --shadow-lg: 0 8px 32px rgba(13,15,20,0.12);
+  --shadow-xl: 0 24px 64px rgba(13,15,20,0.18);
+
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --text-xs: clamp(0.65rem, 1.8vw, 0.72rem);
+  --text-sm: clamp(0.78rem, 2.2vw, 0.875rem);
+  --text-base: clamp(0.875rem, 2.5vw, 1rem);
+  --text-lg: clamp(1rem, 3vw, 1.15rem);
+  --text-xl: clamp(1.1rem, 3.5vw, 1.35rem);
+  --text-2xl: clamp(1.25rem, 4.5vw, 1.65rem);
+
+  --transition: 0.2s cubic-bezier(0.4,0,0.2,1);
+  --sidebar-w: 264px;
+}
+[data-theme="dark"] {
+  --ink:#e8eaf2; --ink-2:#cdd0e0; --ink-3:#b0b5cc;
+  --slate:#8891b0; --muted:#6a7090;
+  --border:#2a2e42; --surface:#12141c; --white:#1a1d2e;
+  --gold:#e0b830; --gold-light:#f5e080; --gold-bg:#1e1a08;
+  --teal:#22a98e; --teal-light:#0d2520;
+  --red:#e05447; --red-light:#1f0f0d;
+  --green:#27a862; --green-light:#0d1f14;
+  --blue:#3b82d4; --blue-light:#0d1826;
+  --purple:#9b65e0; --purple-light:#1a0f2e;
+}
+* { box-sizing: border-box; }
+html,body,#root { height:100%; }
+body {
+  margin:0; font-family:var(--font-body); background:var(--surface); color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
+
+.material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; font-size:20px; vertical-align:middle; }
+
+/* ── Auth shell ───────────────────────── */
+.auth-shell {
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  background:
+    radial-gradient(circle at 20% 20%, var(--gold-bg), transparent 50%),
+    radial-gradient(circle at 80% 80%, var(--teal-light), transparent 50%),
+    var(--surface);
+  padding:24px;
+}
+.auth-card {
+  width:100%; max-width:420px; background:var(--white); border:1px solid var(--border);
+  border-radius:var(--radius-xl); box-shadow:var(--shadow-xl); padding:38px 34px;
+}
+.auth-logo { text-align:center; margin-bottom:26px; }
+.auth-logo h1 {
+  font-family:var(--font-display); font-size:var(--text-2xl); font-weight:700; margin:0;
+  color:var(--ink);
+}
+.auth-logo h1 span { color:var(--gold); }
+.auth-logo p { font-size:var(--text-xs); color:var(--muted); margin:4px 0 0; letter-spacing:.04em; text-transform:uppercase; }
+
+.auth-tabs { display:flex; gap:4px; background:var(--surface); border-radius:10px; padding:4px; margin-bottom:22px; }
+.auth-tab { flex:1; border:none; background:transparent; padding:9px 0; border-radius:7px; font-size:var(--text-sm); font-weight:600; color:var(--muted); cursor:pointer; transition:var(--transition); }
+.auth-tab.active { background:var(--white); color:var(--ink); box-shadow:var(--shadow); }
+
+.field { margin-bottom:14px; }
+.field label { display:block; font-size:var(--text-xs); font-weight:600; color:var(--slate); margin-bottom:6px; }
+.field input, .field select {
+  width:100%; padding:11px 13px; border:1px solid var(--border); border-radius:9px;
+  font-size:var(--text-sm); background:var(--surface); color:var(--ink); font-family:var(--font-body);
+}
+.field input:focus, .field select:focus { outline:none; border-color:var(--gold); background:var(--white); }
+
+.btn { border:none; border-radius:9px; padding:11px 18px; font-size:var(--text-sm); font-weight:600; cursor:pointer; transition:var(--transition); display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.btn-gold { background:var(--gold); color:#fff; }
+.btn-gold:hover { filter:brightness(1.06); }
+.btn-full { width:100%; }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--ink); }
+.btn-outline:hover { border-color:var(--gold); color:var(--gold); background:var(--gold-bg); }
+.btn-ghost { background:transparent; color:var(--muted); }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn-danger { background:var(--red); color:#fff; }
+
+.auth-error { background:var(--red-light); color:var(--red); font-size:var(--text-xs); padding:9px 12px; border-radius:8px; margin-bottom:14px; }
+
+/* ── App shell ────────────────────────── */
+.app-shell { display:flex; min-height:100vh; }
+.sidebar { width:var(--sidebar-w); background:var(--white); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:22px 16px; flex-shrink:0; }
+.sidebar-logo { padding:0 8px 22px; border-bottom:1px solid var(--border); margin-bottom:16px; }
+.sidebar-logo h1 { font-family:var(--font-display); font-size:var(--text-lg); margin:0; }
+.sidebar-logo h1 span { color:var(--gold); }
+.sidebar-logo p { font-size:10px; color:var(--muted); margin:3px 0 0; text-transform:uppercase; letter-spacing:.05em; }
+.nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; color:var(--slate); font-size:var(--text-sm); font-weight:500; cursor:pointer; margin-bottom:2px; transition:var(--transition); }
+.nav-item:hover { background:var(--surface); }
+.nav-item.active { background:var(--gold-bg); color:var(--gold); font-weight:600; }
+.sidebar-foot { margin-top:auto; padding-top:16px; border-top:1px solid var(--border); }
+.user-chip { display:flex; align-items:center; gap:10px; padding:8px; }
+.user-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--gold),var(--teal)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:var(--text-sm); flex-shrink:0; }
+.user-chip strong { display:block; font-size:var(--text-sm); }
+.user-chip span { font-size:11px; color:var(--muted); text-transform:capitalize; }
+
+.main { flex:1; padding:30px 36px; max-width:1100px; }
+.page-head { margin-bottom:24px; }
+.page-head h2 { font-family:var(--font-display); font-size:var(--text-2xl); margin:0 0 4px; }
+.page-head p { color:var(--muted); font-size:var(--text-sm); margin:0; }
+
+/* ── Cards / sections ─────────────────── */
+.card { background:var(--white); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px 22px; margin-bottom:16px; }
+.section-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:14px; }
+
+.upload-card { border:1.5px dashed var(--border); border-radius:var(--radius); padding:16px; transition:var(--transition); }
+.upload-card.has-file { border-style:solid; }
+.upload-card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.upload-card-head strong { font-size:var(--text-sm); }
+.status-pill { font-size:10px; font-weight:700; padding:3px 9px; border-radius:99px; text-transform:uppercase; letter-spacing:.03em; }
+.status-pill.pending { background:var(--surface); color:var(--muted); }
+.status-pill.checking { background:var(--blue-light); color:var(--blue); }
+.status-pill.accepted { background:var(--green-light); color:var(--green); }
+.status-pill.rejected { background:var(--red-light); color:var(--red); }
+
+.dropzone { border:1px dashed var(--border); border-radius:8px; padding:18px; text-align:center; cursor:pointer; font-size:var(--text-xs); color:var(--muted); background:var(--surface); }
+.dropzone:hover { border-color:var(--gold); color:var(--gold); }
+.filename-row { display:flex; align-items:center; gap:8px; font-size:var(--text-xs); color:var(--ink); margin-top:8px; word-break:break-all; }
+
+.verdict-box { margin-top:10px; padding:10px 12px; border-radius:8px; font-size:var(--text-xs); line-height:1.55; }
+.verdict-box.accepted { background:var(--green-light); color:var(--ink-2); border:1px solid rgba(26,127,74,0.25); }
+.verdict-box.rejected { background:var(--red-light); color:var(--ink-2); border:1px solid rgba(192,57,43,0.25); }
+.verdict-box strong { display:block; margin-bottom:3px; }
+
+table { width:100%; border-collapse:collapse; font-size:var(--text-sm); }
+th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); padding:8px 12px; border-bottom:1px solid var(--border); }
+td { padding:10px 12px; border-bottom:1px solid var(--border); }
+tr:hover td { background:var(--surface); }
+
+.badge { font-size:10px; font-weight:700; padding:3px 9px; border-radius:99px; text-transform:uppercase; }
+.badge.green { background:var(--green-light); color:var(--green); }
+.badge.red { background:var(--red-light); color:var(--red); }
+.badge.gold { background:var(--gold-bg); color:var(--gold); }
+
+.spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,0.4); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
+.spinner.dark { border:2px solid rgba(0,0,0,0.15); border-top-color:var(--gold); }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.empty { text-align:center; padding:40px 20px; color:var(--muted); font-size:var(--text-sm); }
+.notice { background:var(--gold-bg); border:1px solid rgba(201,162,39,0.3); color:var(--ink-2); font-size:var(--text-xs); padding:10px 13px; border-radius:9px; margin-bottom:18px; line-height:1.5; }
+
+.modal-overlay { position:fixed; inset:0; background:rgba(13,15,20,0.5); display:flex; align-items:center; justify-content:center; z-index:200; padding:20px; }
+.modal { background:var(--white); border-radius:var(--radius-lg); max-width:520px; width:100%; padding:24px; max-height:85vh; overflow:auto; }
+.modal h3 { margin:0 0 12px; font-family:var(--font-display); }
+
+@media (max-width:840px) {
+  .app-shell { flex-direction:column; }
+  .sidebar { width:100%; flex-direction:row; align-items:center; padding:12px 16px; overflow-x:auto; }
+  .sidebar-logo, .sidebar-foot { display:none; }
+  .main { padding:20px 16px; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react,env">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ════════════════════════════════════════════════════
+   CONFIG — placeholders to be filled in by Ant
+   ════════════════════════════════════════════════════ */
+
+// Firebase project for E-Tuklas Online Checker (standalone — own project, own users)
+const firebaseConfig = {
+  apiKey: "YOUR_FIREBASE_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* AI provider — swappable. Default: Gemini free tier.
+   Key is entered once by a teacher/admin via Settings and stored in
+   Firestore (config/ai doc). NOTE: any key embedded in client-side code
+   is visible to anyone who opens devtools — fine for a free-tier key
+   with no billing attached, NOT fine if this is ever swapped for a
+   paid/billed key. Flag this before going live school-wide. */
+const AI_PROVIDERS = {
+  gemini: {
+    label: "Gemini 2.0 Flash (free tier)",
+    endpoint: (key) => `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+    buildBody: (prompt) => ({ contents: [{ parts: [{ text: prompt }] }] }),
+    extractText: (data) => data?.candidates?.[0]?.content?.parts?.[0]?.text || ""
+  },
+  claude: {
+    label: "Claude (Anthropic API — paid)",
+    endpoint: () => `https://api.anthropic.com/v1/messages`,
+    buildBody: (prompt) => ({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
+    extractText: (data) => (data?.content || []).map(c => c.text || "").join("\n")
+  }
+};
+
+/* Research sections students must submit, one file each.
+   This is the BASIS list — replace with Ant's actual program structure
+   once finalized (some STE formats split Background/Rationale, some don't). */
+const SECTIONS = [
+  { id: "abstract",    label: "Abstract" },
+  { id: "rationale",   label: "Rationale / Background of the Study" },
+  { id: "methodology", label: "Methodology" }
+];
+
+/* Structural rubric — HARD checks only, used until Ant sends the real
+   criteria. These never make a "this research is bad" judgment call —
+   only "this does/doesn't structurally belong in this section," so a
+   harsh verdict is never issued on a guessed standard. */
+const DEFAULT_CRITERIA = `
+You are reviewing a single section of a student research paper for a Philippine
+Senior High School STE (Science, Technology, Engineering) program submission
+portal called E-Tuklas. You are reviewing ONLY the "{SECTION_LABEL}" section.
+
+Apply STRUCTURAL criteria only, not literary or scientific quality judgment,
+because the school has not yet supplied its official content rubric:
+1. Does the text plausibly belong in a "{SECTION_LABEL}" section of a research
+   paper (not an obviously wrong section, not boilerplate, not lorem ipsum,
+   not blank/near-blank)?
+2. Is it written in coherent academic English/Filipino prose (not random
+   text, not copy-pasted instructions, not a different assignment entirely)?
+3. Is it a reasonable length for this section (roughly 80-600 words; flag if
+   wildly outside that without rejecting automatically — note it instead)?
+
+Respond ONLY in this exact JSON shape, no markdown fences, no preamble:
+{"verdict":"accepted" | "rejected","reasoning":"2-4 sentences, direct and honest, explaining exactly why, in language a Grade 11-12 student can act on"}
+
+Be honest and direct in "reasoning" — do not soften a real structural problem,
+but do not invent quality complaints outside the three checks above. If it
+passes the three structural checks, accept it even if the writing could be
+better; that quality judgment is not yours to make until the real rubric is
+loaded.
+
+SECTION TEXT TO REVIEW:
+"""
+{TEXT}
+"""
+`.trim();
+
+/* ════════════════════════════════════════════════════
+   AI CALL
+   ════════════════════════════════════════════════════ */
+async function reviewSection(sectionLabel, text, providerKey, apiKey) {
+  const provider = AI_PROVIDERS[providerKey];
+  const prompt = DEFAULT_CRITERIA
+    .replaceAll("{SECTION_LABEL}", sectionLabel)
+    .replace("{TEXT}", text.slice(0, 12000));
+
+  const res = await fetch(provider.endpoint(apiKey), {
+    method: "POST",
+    headers: providerKey === "claude"
+      ? { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" }
+      : { "Content-Type": "application/json" },
+    body: JSON.stringify(provider.buildBody(prompt))
+  });
+  if (!res.ok) throw new Error(`AI request failed (${res.status})`);
+  const data = await res.json();
+  let raw = provider.extractText(data).trim();
+  raw = raw.replace(/^```json\s*|^```\s*|```$/g, "").trim();
+  let parsed;
+  try { parsed = JSON.parse(raw); }
+  catch (e) { throw new Error("Could not parse AI verdict — raw response: " + raw.slice(0,200)); }
+  if (!parsed.verdict || !parsed.reasoning) throw new Error("AI verdict missing required fields");
+  return parsed;
+}
+
+/* ════════════════════════════════════════════════════
+   FILE PARSING
+   ════════════════════════════════════════════════════ */
+async function extractFileText(file) {
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".txt")) {
+    return await file.text();
+  }
+  if (name.endsWith(".docx")) {
+    const buf = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: buf });
+    return result.value;
+  }
+  throw new Error("Unsupported file type — only .docx and .txt are accepted right now.");
+}
+
+/* ════════════════════════════════════════════════════
+   AUTH PAGE
+   ════════════════════════════════════════════════════ */
+function AuthPage({ onLogin }) {
+  const [tab, setTab] = useState("login");
+  const [form, setForm] = useState({ name:"", email:"", password:"", role:"student" });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const sf = (k,v) => setForm(f => ({ ...f, [k]: v }));
+
+  const submit = async () => {
+    setError(""); setLoading(true);
+    try {
+      if (tab === "login") {
+        const cred = await auth.signInWithEmailAndPassword(form.email, form.password);
+        const snap = await db.collection("users").doc(cred.user.uid).get();
+        onLogin({ uid: cred.user.uid, ...snap.data() });
+      } else {
+        const cred = await auth.createUserWithEmailAndPassword(form.email, form.password);
+        const userDoc = { name: form.name, email: form.email, role: form.role, createdAt: new Date().toISOString() };
+        await db.collection("users").doc(cred.user.uid).set(userDoc);
+        onLogin({ uid: cred.user.uid, ...userDoc });
+      }
+    } catch (e) {
+      setError(e.message.replace("Firebase: ", ""));
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="auth-shell">
+      <div className="auth-card">
+        <div className="auth-logo">
+          <h1>E-Tuklas <span>Online Checker</span></h1>
+          <p>Automated Research Submission Review</p>
+        </div>
+        <div className="auth-tabs">
+          <button className={`auth-tab${tab==="login"?" active":""}`} onClick={()=>setTab("login")}>Sign In</button>
+          <button className={`auth-tab${tab==="signup"?" active":""}`} onClick={()=>setTab("signup")}>Create Account</button>
+        </div>
+        {error && <div className="auth-error">{error}</div>}
+        {tab === "signup" && (
+          <div className="field">
+            <label>Full Name</label>
+            <input value={form.name} onChange={e=>sf("name",e.target.value)} placeholder="Juan Dela Cruz"/>
+          </div>
+        )}
+        <div className="field">
+          <label>Email</label>
+          <input type="email" value={form.email} onChange={e=>sf("email",e.target.value)} placeholder="you@school.edu.ph"/>
+        </div>
+        <div className="field">
+          <label>Password</label>
+          <input type="password" value={form.password} onChange={e=>sf("password",e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="••••••••"/>
+        </div>
+        {tab === "signup" && (
+          <div className="field">
+            <label>Role</label>
+            <select value={form.role} onChange={e=>sf("role",e.target.value)}>
+              <option value="student">Student</option>
+              <option value="teacher">Teacher / Admin</option>
+            </select>
+          </div>
+        )}
+        <button className="btn btn-gold btn-full" onClick={submit} disabled={loading} style={{height:46, marginTop:6}}>
+          {loading ? <span className="spinner"></span> : (tab==="login" ? "Sign In" : "Create Account")}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════
+   STUDENT DASHBOARD — per-section upload + auto review
+   ════════════════════════════════════════════════════ */
+function StudentDashboard({ user, aiConfig }) {
+  const [sections, setSections] = useState(() => {
+    const init = {};
+    SECTIONS.forEach(s => init[s.id] = { status:"pending", fileName:null, verdict:null, text:null });
+    return init;
+  });
+
+  useEffect(() => {
+    db.collection("submissions").where("studentUid","==",user.uid).get().then(snap => {
+      setSections(prev => {
+        const next = { ...prev };
+        snap.forEach(doc => {
+          const d = doc.data();
+          next[d.sectionId] = { status: d.verdict, fileName: d.fileName, verdict: { verdict: d.verdict, reasoning: d.reasoning }, text: null };
+        });
+        return next;
+      });
+    });
+  }, [user.uid]);
+
+  const handleFile = async (sectionId, sectionLabel, file) => {
+    setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], status:"checking", fileName:file.name } }));
+    try {
+      const text = await extractFileText(file);
+      if (!aiConfig.apiKey) throw new Error("AI provider not configured yet — ask your teacher/admin to set it up in Settings.");
+      const verdict = await reviewSection(sectionLabel, text, aiConfig.provider, aiConfig.apiKey);
+      setSections(prev => ({ ...prev, [sectionId]: { status: verdict.verdict, fileName:file.name, verdict, text } }));
+      await db.collection("submissions").add({
+        studentUid: user.uid, studentName: user.name, sectionId, sectionLabel,
+        fileName: file.name, verdict: verdict.verdict, reasoning: verdict.reasoning,
+        provider: aiConfig.provider, submittedAt: new Date().toISOString()
+      });
+    } catch (e) {
+      setSections(prev => ({ ...prev, [sectionId]: { status:"rejected", fileName:file.name, verdict:{ verdict:"rejected", reasoning:"System error: " + e.message } } }));
+    }
+  };
+
+  return (
+    <>
+      <div className="page-head">
+        <h2>My Submissions</h2>
+        <p>Upload each research part as a separate .docx or .txt file. Review is automatic and final.</p>
+      </div>
+      {!aiConfig.apiKey && (
+        <div className="notice">
+          The AI reviewer hasn't been configured yet by your teacher/admin. Uploads will be accepted but won't be auto-reviewed until that's set up.
+        </div>
+      )}
+      <div className="section-grid">
+        {SECTIONS.map(s => {
+          const st = sections[s.id];
+          return (
+            <div key={s.id} className={`upload-card${st.fileName?" has-file":""}`}>
+              <div className="upload-card-head">
+                <strong>{s.label}</strong>
+                <span className={`status-pill ${st.status}`}>
+                  {st.status === "checking" ? "Reviewing…" : st.status}
+                </span>
+              </div>
+              <label className="dropzone">
+                <span className="material-symbols-outlined">upload_file</span><br/>
+                {st.fileName ? "Replace file" : "Click to upload .docx or .txt"}
+                <input type="file" accept=".docx,.txt" style={{display:"none"}}
+                  onChange={e => e.target.files[0] && handleFile(s.id, s.label, e.target.files[0])}/>
+              </label>
+              {st.fileName && (
+                <div className="filename-row">
+                  <span className="material-symbols-outlined" style={{fontSize:16}}>description</span>
+                  {st.fileName}
+                </div>
+              )}
+              {st.status === "checking" && (
+                <div className="verdict-box" style={{background:"var(--surface)"}}>
+                  <span className="spinner dark" style={{display:"inline-block",marginRight:6,verticalAlign:"-2px"}}></span>
+                  AI is reviewing this section against current criteria…
+                </div>
+              )}
+              {st.verdict && st.status !== "checking" && (
+                <div className={`verdict-box ${st.status}`}>
+                  <strong>{st.status === "accepted" ? "Accepted" : "Rejected"}</strong>
+                  {st.verdict.reasoning}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
+/* ════════════════════════════════════════════════════
+   TEACHER DASHBOARD — full log, read-only (verdicts final)
+   ════════════════════════════════════════════════════ */
+function TeacherDashboard({ aiConfig, setAiConfig }) {
+  const [subs, setSubs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [active, setActive] = useState(null);
+  const [keyDraft, setKeyDraft] = useState(aiConfig.apiKey || "");
+  const [providerDraft, setProviderDraft] = useState(aiConfig.provider || "gemini");
+
+  useEffect(() => {
+    db.collection("submissions").orderBy("submittedAt","desc").limit(200).get().then(snap => {
+      setSubs(snap.docs.map(d => ({ id:d.id, ...d.data() })));
+      setLoading(false);
+    });
+  }, []);
+
+  const saveAiConfig = async () => {
+    await db.collection("config").doc("ai").set({ provider: providerDraft, apiKey: keyDraft });
+    setAiConfig({ provider: providerDraft, apiKey: keyDraft });
+  };
+
+  const accepted = subs.filter(s => s.verdict === "accepted").length;
+  const rejected = subs.filter(s => s.verdict === "rejected").length;
+
+  return (
+    <>
+      <div className="page-head">
+        <h2>Submission Log</h2>
+        <p>All AI verdicts are final and logged with full reasoning for accountability.</p>
+      </div>
+
+      <div className="card">
+        <strong style={{fontSize:"var(--text-sm)"}}>AI Reviewer Settings</strong>
+        <div style={{display:"flex", gap:10, marginTop:12, flexWrap:"wrap", alignItems:"flex-end"}}>
+          <div className="field" style={{margin:0, minWidth:220}}>
+            <label>Provider</label>
+            <select value={providerDraft} onChange={e=>setProviderDraft(e.target.value)}>
+              {Object.entries(AI_PROVIDERS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          <div className="field" style={{margin:0, flex:1, minWidth:220}}>
+            <label>API Key</label>
+            <input value={keyDraft} onChange={e=>setKeyDraft(e.target.value)} placeholder="Paste API key"/>
+          </div>
+          <button className="btn btn-gold" onClick={saveAiConfig} style={{height:42}}>Save</button>
+        </div>
+        <p style={{fontSize:"11px",color:"var(--muted)",marginTop:8,marginBottom:0}}>
+          Note: this key is stored in Firestore and used client-side, so anyone with access to this app's source can see it.
+          Fine for a free-tier key with no billing. Do not put a billed key here without locking this down server-side first.
+        </p>
+      </div>
+
+      <div className="card" style={{display:"flex", gap:24}}>
+        <div><div style={{fontSize:"var(--text-2xl)",fontWeight:700}}>{subs.length}</div><div style={{fontSize:"var(--text-xs)",color:"var(--muted)"}}>Total Submissions</div></div>
+        <div><div style={{fontSize:"var(--text-2xl)",fontWeight:700,color:"var(--green)"}}>{accepted}</div><div style={{fontSize:"var(--text-xs)",color:"var(--muted)"}}>Accepted</div></div>
+        <div><div style={{fontSize:"var(--text-2xl)",fontWeight:700,color:"var(--red)"}}>{rejected}</div><div style={{fontSize:"var(--text-xs)",color:"var(--muted)"}}>Rejected</div></div>
+      </div>
+
+      <div className="card" style={{padding:0}}>
+        {loading ? <div className="empty">Loading…</div> : subs.length === 0 ? (
+          <div className="empty">No submissions yet.</div>
+        ) : (
+          <table>
+            <thead><tr><th>Student</th><th>Section</th><th>File</th><th>Verdict</th><th>Submitted</th><th></th></tr></thead>
+            <tbody>
+              {subs.map(s => (
+                <tr key={s.id}>
+                  <td>{s.studentName}</td>
+                  <td>{s.sectionLabel}</td>
+                  <td>{s.fileName}</td>
+                  <td><span className={`badge ${s.verdict==="accepted"?"green":"red"}`}>{s.verdict}</span></td>
+                  <td style={{color:"var(--muted)",fontSize:"var(--text-xs)"}}>{new Date(s.submittedAt).toLocaleString("en-PH")}</td>
+                  <td><button className="btn btn-ghost" style={{padding:"4px 8px"}} onClick={()=>setActive(s)}>View</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {active && (
+        <div className="modal-overlay" onClick={()=>setActive(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()}>
+            <h3>{active.sectionLabel} — {active.studentName}</h3>
+            <span className={`badge ${active.verdict==="accepted"?"green":"red"}`}>{active.verdict}</span>
+            <p style={{fontSize:"var(--text-sm)",lineHeight:1.6,marginTop:14}}>{active.reasoning}</p>
+            <p style={{fontSize:"11px",color:"var(--muted)"}}>Provider: {active.provider} · {new Date(active.submittedAt).toLocaleString("en-PH")}</p>
+            <button className="btn btn-outline btn-full" onClick={()=>setActive(null)}>Close</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ════════════════════════════════════════════════════
+   APP SHELL
+   ════════════════════════════════════════════════════ */
+function App() {
+  const [user, setUser] = useState(undefined);
+  const [aiConfig, setAiConfig] = useState({ provider:"gemini", apiKey:"" });
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(async (fbUser) => {
+      if (!fbUser) { setUser(null); return; }
+      const snap = await db.collection("users").doc(fbUser.uid).get();
+      setUser({ uid: fbUser.uid, ...snap.data() });
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    db.collection("config").doc("ai").get().then(snap => {
+      if (snap.exists) setAiConfig(snap.data());
+    });
+  }, []);
+
+  if (user === undefined) return <div className="auth-shell"><span className="spinner dark"></span></div>;
+  if (!user) return <AuthPage onLogin={setUser} />;
+
+  return (
+    <div className="app-shell">
+      <div className="sidebar">
+        <div className="sidebar-logo">
+          <h1>E-Tuklas <span>Checker</span></h1>
+          <p>Online Research Review</p>
+        </div>
+        <div className="nav-item active">
+          <span className="material-symbols-outlined">{user.role==="teacher"?"fact_check":"upload_file"}</span>
+          {user.role === "teacher" ? "Submission Log" : "My Submissions"}
+        </div>
+        <div className="sidebar-foot">
+          <div className="user-chip">
+            <div className="user-avatar">{(user.name||"?")[0]}</div>
+            <div>
+              <strong>{user.name}</strong>
+              <span>{user.role}</span>
+            </div>
+          </div>
+          <button className="btn btn-ghost btn-full" onClick={()=>auth.signOut()} style={{marginTop:8, justifyContent:"flex-start"}}>
+            <span className="material-symbols-outlined" style={{fontSize:18}}>logout</span> Sign Out
+          </button>
+        </div>
+      </div>
+      <div className="main">
+        {user.role === "teacher"
+          ? <TeacherDashboard aiConfig={aiConfig} setAiConfig={setAiConfig} />
+          : <StudentDashboard user={user} aiConfig={aiConfig} />}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
