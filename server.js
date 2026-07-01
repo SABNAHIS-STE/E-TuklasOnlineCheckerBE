@@ -221,7 +221,9 @@ const server = createServer(async (req, res) => {
   try {
     const fetchRes = await handler(fetchReq);
     const text = await fetchRes.text();
-    res.writeHead(fetchRes.status, { ...headers, ...Object.fromEntries(fetchRes.headers) });
+    const resHeaders = Object.fromEntries(fetchRes.headers);
+    delete resHeaders["access-control-allow-origin"];
+    res.writeHead(fetchRes.status, { ...resHeaders, ...headers });
     res.end(text);
   } catch (e) {
     const status = e.status || 500;
