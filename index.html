@@ -564,6 +564,54 @@ function sortedTeamEmails(ownEmail, coAuthors) {
   const all = [ownEmail].concat((coAuthors || []).map(c => c.email));
   return Array.from(new Set(all.map(e => (e || "").toLowerCase().trim()))).sort();
 }
+// Team membership is normally declared one-sided — a "leader" fills out
+// Project Setup and lists teammates who never have to touch Setup
+// themselves. So resolving "who's on my team" can't just read MY OWN
+// coAuthors field — it also has to check whether anyone ELSE has already
+// listed me as one of theirs, and if so, adopt their whole roster too.
+// Without this, a co-author who never ran Setup computes a team of just
+// themselves and lands on a completely different shared doc than everyone
+// else on the project.
+function resolveTeamEmails(ownEmail, freshUser, allUsers) {
+  // Build every user's declared roster (email -> the coAuthor emails THEY
+  // listed), including a synthetic entry for "me" built from freshUser,
+  // since that may be more current than what's in allUsers yet.
+  const rosterOf = {};
+  (allUsers || []).forEach(u => {
+    const email = (u.email || "").toLowerCase().trim();
+    if (!email) return;
+    rosterOf[email] = (u.teamMode === "team")
+      ? (u.coAuthors || []).map(c => (c.email || "").toLowerCase().trim()).filter(Boolean)
+      : [];
+  });
+  rosterOf[ownEmail] = (freshUser.teamMode === "team")
+    ? (freshUser.coAuthors || []).map(c => (c.email || "").toLowerCase().trim()).filter(Boolean)
+    : (rosterOf[ownEmail] || []);
+
+  // Team membership is a graph, not a one-hop lookup. A one-hop check only
+  // catches "who lists me" OR "who I list" — not a chain of the two. E.g.
+  // A declares [A,B] and B separately declares [B,C] without listing A
+  // back: a one-hop lookup gives A the set {A,B} but gives B the set
+  // {A,B,C} — two DIFFERENT keys for people who consider themselves one
+  // team, which is exactly what causes teammates to land on separate
+  // submission docs with separate grades. Walk the full connected
+  // component (BFS over declarations in both directions) so every member
+  // always converges on the identical final set, no matter who declared
+  // whom or in what order.
+  const visited = new Set([ownEmail]);
+  const queue = [ownEmail];
+  while (queue.length) {
+    const email = queue.pop();
+    // Outgoing: people this person declared as teammates.
+    (rosterOf[email] || []).forEach(e => { if (!visited.has(e)) { visited.add(e); queue.push(e); } });
+    // Incoming: anyone whose own roster declares this person as a teammate.
+    Object.keys(rosterOf).forEach(other => {
+      if (visited.has(other)) return;
+      if ((rosterOf[other] || []).includes(email)) { visited.add(other); queue.push(other); }
+    });
+  }
+  return Array.from(visited).sort();
+}
 function submissionDocId(sectionId, teamEmails) {
   // djb2 — just needs to be stable and collision-resistant, not cryptographic.
   const key = teamEmails.join("|");
@@ -735,7 +783,13 @@ function StudentDashboard({ user, aiConfig }) {
       // so far with the freshly-saved roster.
       const ownEmail = (user.email || "").toLowerCase();
       const newCoAuthors = teamModeDraft === "team" ? coAuthorsDraft : [];
-      const newTeamEmails = sortedTeamEmails(ownEmail, newCoAuthors);
+      // Use the same graph-resolution as handleFile (not the old one-hop
+      // sortedTeamEmails) so a metadata patch here always computes the
+      // exact same team set an upload would — otherwise this could patch
+      // existing docs with a DIFFERENT teamEmails set than new uploads
+      // would use, re-introducing the same "teammates see different
+      // grades" split this whole function exists to prevent.
+      const newTeamEmails = resolveTeamEmails(ownEmail, { teamMode: teamModeDraft, coAuthors: newCoAuthors }, people);
       // Metadata-only patch: this only ever touches teamEmails/coAuthors/teamMode,
       // matching the Firestore rule that lets an original uploader refresh those
       // three fields without needing broader update or delete permissions. If the
@@ -820,10 +874,18 @@ function StudentDashboard({ user, aiConfig }) {
       // immediately = stale teamMode/coAuthors otherwise).
       const freshSnap = await db.collection("users").doc(user.uid).get();
       const freshUser = freshSnap.exists ? freshSnap.data() : {};
-      const liveTeamMode = freshUser.teamMode || "individual";
-      const liveCoAuthors = liveTeamMode === "team" ? (freshUser.coAuthors || []) : [];
       const ownEmail = (freshUser.email || user.email || "").toLowerCase();
-      const teamEmails = sortedTeamEmails(ownEmail, liveCoAuthors);
+      // Need everyone's roster, not just mine, to catch the case where a
+      // teammate declared ME as their co-author but I never set up Team
+      // Mode myself.
+      const allUsersSnap = await db.collection("users").get();
+      const allUsers = allUsersSnap.docs.map(d => d.data());
+      const teamEmails = resolveTeamEmails(ownEmail, freshUser, allUsers);
+      const liveTeamMode = teamEmails.length > 1 ? "team" : (freshUser.teamMode || "individual");
+      const liveCoAuthors = teamEmails.filter(e => e !== ownEmail).map(e => {
+        const match = allUsers.find(u => (u.email || "").toLowerCase().trim() === e);
+        return { name: (match && match.name) || e, email: e };
+      });
       const docId = submissionDocId(sectionId, teamEmails);
       const textHash = await hashText(text);
 
