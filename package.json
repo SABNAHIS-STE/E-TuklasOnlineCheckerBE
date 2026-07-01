@@ -8,6 +8,7 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@supabase/server": "^1.0.0"
+    "@supabase/server": "^1.0.0",
+    "@supabase/supabase-js": "^2.0.0"
   }
 }
