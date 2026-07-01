@@ -86,7 +86,10 @@ async function callGemini(prompt, apiKey) {
     }
   );
   if (!res.ok) {
-    const err = new Error(`Gemini request failed (${res.status})`);
+    let bodyText = "";
+    try { bodyText = await res.text(); } catch (e) {}
+    console.error(`[gemini] request failed (${res.status}):`, bodyText);
+    const err = new Error(`Gemini request failed (${res.status}): ${bodyText}`);
     err.status = res.status;
     throw err;
   }
