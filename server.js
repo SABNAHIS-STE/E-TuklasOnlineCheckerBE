@@ -27,8 +27,14 @@ async function getRole(ctx) {
 function requireRole(allowedRoles) {
   return async (ctx) => {
     const info = await getRole(ctx);
-    if (!info || !allowedRoles.includes(info.role)) {
-      throw Object.assign(new Error("Forbidden"), { status: 403 });
+    if (!info) {
+      throw Object.assign(new Error("Not signed in or profile not found"), { status: 401 });
+    }
+    if (!allowedRoles.includes(info.role)) {
+      throw Object.assign(
+        new Error(`Forbidden: your role is "${info.role}", this action requires one of: ${allowedRoles.join(", ")}`),
+        { status: 403 }
+      );
     }
     return info;
   };
