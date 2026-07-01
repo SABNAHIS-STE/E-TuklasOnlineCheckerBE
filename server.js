@@ -17,8 +17,7 @@ function corsHeaders(origin) {
 
 // ── Helper: read the caller's profile role using the RLS-scoped client ──
 async function getRole(ctx) {
-  const { data: userRes } = await ctx.supabase.auth.getUser();
-  const uid = userRes?.user?.id;
+  const uid = ctx.userClaims?.id;
   if (!uid) return null;
   const { data } = await ctx.supabase.from("profiles").select("role").eq("id", uid).single();
   return { uid, role: data?.role || "student" };
@@ -54,8 +53,7 @@ const gradeHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
     return Response.json({ error: "Section text too short to grade" }, { status: 400 });
   }
 
-  const { data: userRes } = await ctx.supabase.auth.getUser();
-  const uid = userRes?.user?.id;
+  const uid = ctx.userClaims?.id;
 
   const { data: sub } = await ctx.supabaseAdmin
     .from("submissions").select("uploader_id, ai_score, ai_status, submitted_at")
