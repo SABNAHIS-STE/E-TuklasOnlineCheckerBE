@@ -1,0 +1,13 @@
+{
+  "name": "etuklas-checker-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/server": "^1.0.0"
+  }
+}
