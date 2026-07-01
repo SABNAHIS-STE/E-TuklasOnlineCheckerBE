@@ -3,6 +3,13 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<script>
+  (function() {
+    var saved = localStorage.getItem("etuklas-theme");
+    var dark = saved ? saved === "dark" : true;
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  })();
+</script>
 <title>E-Tuklas Online Checker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
@@ -11,7 +18,6 @@
 <!-- React / Babel (in-browser transpile, matches main portal architecture) -->
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <!-- Firebase (compat SDK, same pattern as main portal) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -28,12 +34,13 @@
    so the Checker reads as the same family of product
 ══════════════════════════════════════════ */
 :root {
-  --ink:#0d0f14; --ink-2:#1e2130; --ink-3:#2e3250;
+  /* Light theme — mirrors lightmode.html mock */
+  --ink:#191c1f; --ink-2:#1e2130; --ink-3:#2e3250;
   --slate:#4a5174; --muted:#7c85a8;
-  --border:#e2e5f0; --surface:#f5f6fa; --white:#ffffff;
-  --gold:#c9a227; --gold-light:#f0d882; --gold-bg:#fdf8ec;
-  --teal:#1a7f6e; --teal-light:#e6f5f2;
-  --red:#c0392b; --red-light:#fdf0ee;
+  --border:#e1e2e6; --surface:#f8f9fd; --white:#ffffff; --elevated:#edeef2;
+  --gold:#755b00; --gold-light:#ecc246; --gold-bg:#fdf8ec;
+  --teal:#006b5c; --teal-light:#e6f5f2; --teal-vibrant:#22a98e;
+  --red:#ba1a1a; --red-light:#fdf0ee;
   --green:#1a7f4a; --green-light:#e6f5ee;
   --blue:#1a5fa8; --blue-light:#e6f0fd;
   --purple:#6d3fa8; --purple-light:#f3eeff;
@@ -58,16 +65,60 @@
   --sidebar-w: 264px;
 }
 [data-theme="dark"] {
-  --ink:#e8eaf2; --ink-2:#cdd0e0; --ink-3:#b0b5cc;
-  --slate:#8891b0; --muted:#6a7090;
-  --border:#2a2e42; --surface:#12141c; --white:#1a1d2e;
-  --gold:#e0b830; --gold-light:#f5e080; --gold-bg:#1e1a08;
-  --teal:#22a98e; --teal-light:#0d2520;
-  --red:#e05447; --red-light:#1f0f0d;
-  --green:#27a862; --green-light:#0d1f14;
-  --blue:#3b82d4; --blue-light:#0d1826;
-  --purple:#9b65e0; --purple-light:#1a0f2e;
+  /* Dark theme — mirrors darkmode.html mock: near-black surface, electric-blue accent */
+  --ink:#eff1f5; --ink-2:#d2d2d6; --ink-3:#b5b5bc;
+  --slate:#aeaeb6; --muted:#9aa0ad;
+  --border:#2a2b2e; --surface:#18191a; --white:#242526; --elevated:#3a3b3c;
+  --gold:#2e89ff; --gold-light:#71a9f7; --gold-bg:rgba(46,137,255,0.12);
+  --teal:#22a98e; --teal-light:rgba(34,169,142,0.12); --teal-vibrant:#22a98e;
+  --red:#c0392b; --red-light:rgba(192,57,43,0.12);
+  --green:#3fc977; --green-light:rgba(63,201,119,0.12);
+  --blue:#2e89ff; --blue-light:rgba(46,137,255,0.12);
+  --purple:#ac8df0; --purple-light:rgba(172,141,240,0.12);
+  --shadow: 0 2px 12px rgba(0,0,0,0.35);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  --shadow-xl: 0 28px 70px rgba(0,0,0,0.65);
 }
+[data-theme="dark"] body { background:var(--surface); }
+
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
+.dropzone:focus-visible, .theme-switch:focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background:#46474d; }
+
+[data-theme="dark"] .field input,
+[data-theme="dark"] .field select,
+[data-theme="dark"] .dropzone {
+  background: var(--elevated); border-color: transparent;
+}
+[data-theme="dark"] .field input:focus,
+[data-theme="dark"] .field select:focus {
+  background: var(--elevated); border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(46,137,255,0.18);
+}
+[data-theme="dark"] .dropzone:hover { background:#454647; border-color: var(--gold); }
+
+.auth-shell {
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  background:
+    radial-gradient(circle at 20% 20%, var(--gold-bg), transparent 50%),
+    radial-gradient(circle at 80% 80%, var(--teal-light), transparent 50%),
+    var(--surface);
+  padding:24px;
+}
+[data-theme="dark"] .auth-shell {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(46,137,255,0.14), transparent 55%),
+    radial-gradient(circle at 80% 80%, rgba(34,169,142,0.12), transparent 55%),
+    var(--surface);
+}
+
+[data-theme="dark"] .btn-gold:hover { filter:brightness(1.15); }
+[data-theme="dark"] .upload-card { border-color:var(--border); background:var(--white); }
+
+
 * { box-sizing: border-box; }
 html,body,#root { height:100%; }
 body {
@@ -78,16 +129,9 @@ body {
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:99px;}
 
 .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; font-size:20px; vertical-align:middle; }
+.nav-item.active .material-symbols-outlined { font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24; }
 
 /* ── Auth shell ───────────────────────── */
-.auth-shell {
-  min-height:100vh; display:flex; align-items:center; justify-content:center;
-  background:
-    radial-gradient(circle at 20% 20%, var(--gold-bg), transparent 50%),
-    radial-gradient(circle at 80% 80%, var(--teal-light), transparent 50%),
-    var(--surface);
-  padding:24px;
-}
 .auth-card {
   width:100%; max-width:420px; background:var(--white); border:1px solid var(--border);
   border-radius:var(--radius-xl); box-shadow:var(--shadow-xl); padding:38px 34px;
@@ -103,6 +147,7 @@ body {
 .auth-tabs { display:flex; gap:4px; background:var(--surface); border-radius:10px; padding:4px; margin-bottom:22px; }
 .auth-tab { flex:1; border:none; background:transparent; padding:9px 0; border-radius:7px; font-size:var(--text-sm); font-weight:600; color:var(--muted); cursor:pointer; transition:var(--transition); }
 .auth-tab.active { background:var(--white); color:var(--ink); box-shadow:var(--shadow); }
+[data-theme="dark"] .auth-tab.active { background:var(--elevated); }
 
 .field { margin-bottom:14px; }
 .field label { display:block; font-size:var(--text-xs); font-weight:600; color:var(--slate); margin-bottom:6px; }
@@ -112,9 +157,11 @@ body {
 }
 .field input:focus, .field select:focus { outline:none; border-color:var(--gold); background:var(--white); }
 
-.btn { border:none; border-radius:9px; padding:11px 18px; font-size:var(--text-sm); font-weight:600; cursor:pointer; transition:var(--transition); display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.btn { border:none; border-radius:var(--radius); padding:11px 18px; font-size:var(--text-sm); font-weight:600; cursor:pointer; transition:var(--transition); display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.btn:active { transform:scale(0.96); }
 .btn-gold { background:var(--gold); color:#fff; }
-.btn-gold:hover { filter:brightness(1.06); }
+.btn-gold:hover { filter:brightness(1.06); box-shadow:0 6px 18px rgba(46,137,255,0.25); }
+[data-theme="light"] .btn-gold:hover { box-shadow:0 6px 18px rgba(117,91,0,0.18); }
 .btn-full { width:100%; }
 .btn-outline { background:transparent; border:1px solid var(--border); color:var(--ink); }
 .btn-outline:hover { border-color:var(--gold); color:var(--gold); background:var(--gold-bg); }
@@ -126,88 +173,194 @@ body {
 
 /* ── App shell ────────────────────────── */
 .app-shell { display:flex; min-height:100vh; }
-.sidebar { width:var(--sidebar-w); background:var(--white); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:22px 16px; flex-shrink:0; }
-.sidebar-logo { padding:0 8px 22px; border-bottom:1px solid var(--border); margin-bottom:16px; }
-.sidebar-logo h1 { font-family:var(--font-display); font-size:var(--text-lg); margin:0; }
-.sidebar-logo h1 span { color:var(--gold); }
+.sidebar { width:var(--sidebar-w); background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; padding:30px 14px; flex-shrink:0; }
+.sidebar-logo { display:flex; align-items:center; gap:12px; padding:0 8px 22px; margin-bottom:14px; }
+.sidebar-logo-icon { width:40px; height:40px; border-radius:10px; background:var(--gold); display:flex; align-items:center; justify-content:center; color:#fff; flex-shrink:0; }
+.sidebar-logo-icon .material-symbols-outlined { font-size:22px; font-variation-settings:'FILL' 1; }
+.sidebar-logo h1 { font-family:var(--font-display); font-size:var(--text-lg); margin:0; line-height:1.1; color:var(--gold); }
 .sidebar-logo p { font-size:10px; color:var(--muted); margin:3px 0 0; text-transform:uppercase; letter-spacing:.05em; }
-.nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:9px; color:var(--slate); font-size:var(--text-sm); font-weight:500; cursor:pointer; margin-bottom:2px; transition:var(--transition); }
-.nav-item:hover { background:var(--surface); }
-.nav-item.active { background:var(--gold-bg); color:var(--gold); font-weight:600; }
+.nav-item { display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:var(--radius); color:var(--slate); font-size:var(--text-sm); font-weight:500; cursor:pointer; margin-bottom:2px; transition:var(--transition); }
+.nav-item:hover { background:var(--elevated); }
+.nav-item.active { background:var(--elevated); color:var(--gold); font-weight:700; box-shadow:var(--shadow); }
 .sidebar-foot { margin-top:auto; padding-top:16px; border-top:1px solid var(--border); }
 .user-chip { display:flex; align-items:center; gap:10px; padding:8px; }
-.user-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--gold),var(--teal)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:var(--text-sm); flex-shrink:0; }
+.user-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,var(--gold),var(--teal-vibrant)); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:var(--text-sm); flex-shrink:0; }
 .user-chip strong { display:block; font-size:var(--text-sm); }
 .user-chip span { font-size:11px; color:var(--muted); text-transform:capitalize; }
 
-.main { flex:1; padding:30px 36px; max-width:1100px; }
+.main { flex:1; padding:30px 36px 30px 26px; max-width:1100px; }
 .page-head { margin-bottom:24px; }
 .page-head h2 { font-family:var(--font-display); font-size:var(--text-2xl); margin:0 0 4px; }
 .page-head p { color:var(--muted); font-size:var(--text-sm); margin:0; }
 
 /* ── Cards / sections ─────────────────── */
-.card { background:var(--white); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px 22px; margin-bottom:16px; }
+.card { background:var(--white); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px 22px; margin-bottom:16px; box-shadow:var(--shadow); }
 .section-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:14px; }
 
-.upload-card { border:1.5px dashed var(--border); border-radius:var(--radius); padding:16px; transition:var(--transition); }
-.upload-card.has-file { border-style:solid; }
-.upload-card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
-.upload-card-head strong { font-size:var(--text-sm); }
-.status-pill { font-size:10px; font-weight:700; padding:3px 9px; border-radius:99px; text-transform:uppercase; letter-spacing:.03em; }
-.status-pill.pending { background:var(--surface); color:var(--muted); }
+.upload-card { background:var(--white); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px; transition:var(--transition); box-shadow:var(--shadow); }
+.upload-card:hover { border-color:var(--gold); }
+.upload-card.has-file { border-color:var(--gold); box-shadow:var(--shadow-lg); }
+.upload-card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; gap:8px; }
+.upload-card-head strong { font-family:var(--font-display); font-size:var(--text-base); font-weight:700; }
+.status-pill { font-size:10px; font-weight:700; padding:4px 10px; border-radius:99px; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap; }
+.status-pill.pending { background:var(--elevated); color:var(--muted); }
 .status-pill.checking { background:var(--blue-light); color:var(--blue); }
-.status-pill.accepted { background:var(--green-light); color:var(--green); }
+.status-pill.approved, .status-pill.accepted { background:var(--teal-light); color:var(--teal-vibrant); }
+.status-pill.needs_revision { background:var(--gold-bg); color:var(--gold); }
 .status-pill.rejected { background:var(--red-light); color:var(--red); }
+.status-pill.error { background:var(--red-light); color:var(--red); }
 
-.dropzone { border:1px dashed var(--border); border-radius:8px; padding:18px; text-align:center; cursor:pointer; font-size:var(--text-xs); color:var(--muted); background:var(--surface); }
-.dropzone:hover { border-color:var(--gold); color:var(--gold); }
-.filename-row { display:flex; align-items:center; gap:8px; font-size:var(--text-xs); color:var(--ink); margin-top:8px; word-break:break-all; }
+.dropzone { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; border:1.5px dashed var(--border); border-radius:var(--radius); padding:20px; text-align:center; cursor:pointer; font-size:var(--text-xs); color:var(--muted); background:var(--surface); transition:var(--transition); }
+.dropzone:hover { border-color:var(--gold); color:var(--gold); background:var(--gold-bg); }
+.dropzone:active { transform: scale(0.98); }
+.filename-row { display:flex; align-items:center; gap:8px; font-size:var(--text-xs); color:var(--ink); margin-top:10px; word-break:break-all; }
 
-.verdict-box { margin-top:10px; padding:10px 12px; border-radius:8px; font-size:var(--text-xs); line-height:1.55; }
-.verdict-box.accepted { background:var(--green-light); color:var(--ink-2); border:1px solid rgba(26,127,74,0.25); }
-.verdict-box.rejected { background:var(--red-light); color:var(--ink-2); border:1px solid rgba(192,57,43,0.25); }
+.verdict-box { margin-top:12px; padding:11px 13px; border-radius:var(--radius); font-size:var(--text-xs); line-height:1.55; }
+.verdict-box.approved, .verdict-box.accepted { background:var(--teal-light); color:var(--ink-2); border:1px solid rgba(34,169,142,0.3); }
+.verdict-box.needs_revision { background:var(--gold-bg); color:var(--ink-2); border:1px solid rgba(46,137,255,0.3); }
+.verdict-box.rejected { background:var(--red-light); color:var(--ink-2); border:1px solid rgba(192,57,43,0.3); }
 .verdict-box strong { display:block; margin-bottom:3px; }
 
+/* ── Score / rubric breakdown ───────────── */
+.score-row { display:flex; align-items:baseline; gap:8px; margin:10px 0; }
+.score-num { font-family:var(--font-mono); font-size:1.6rem; font-weight:700; }
+.score-num.approved, .score-num.accepted { color:var(--teal-vibrant); }
+.score-num.needs_revision { color:var(--gold); }
+.score-num.rejected { color:var(--red); }
+.score-bar-track { height:6px; border-radius:99px; background:var(--elevated); overflow:hidden; margin:6px 0 10px; }
+.score-bar-fill { height:100%; border-radius:99px; transition:width 0.4s ease; }
+.rubric-list { display:flex; flex-direction:column; gap:6px; margin:8px 0; }
+.rubric-item { display:flex; justify-content:space-between; align-items:center; font-size:var(--text-xs); padding:6px 9px; border-radius:7px; background:var(--surface); }
+.rubric-item .rubric-score { font-family:var(--font-mono); font-weight:600; color:var(--muted); flex-shrink:0; margin-left:8px; }
+.teacher-revision { margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); font-size:var(--text-xs); }
+.teacher-revision .tag { display:inline-flex; align-items:center; gap:4px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--purple); background:var(--purple-light); padding:3px 8px; border-radius:99px; margin-bottom:6px; }
+
+.field-error { font-size:var(--text-xs); color:var(--red); margin-top:8px; }
+
+/* ── Groups ─────────────────────────────── */
+.group-card { background:var(--white); border:1px solid var(--border); border-radius:var(--radius-lg); padding:16px 18px; margin-bottom:12px; box-shadow:var(--shadow); }
+.group-card-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.group-card-head strong { font-family:var(--font-display); font-size:var(--text-base); }
+.chip-row { display:flex; flex-wrap:wrap; gap:6px; }
+.chip { display:inline-flex; align-items:center; gap:5px; font-size:11px; background:var(--surface); border:1px solid var(--border); padding:4px 10px; border-radius:99px; color:var(--ink-2); }
+.chip button { border:none; background:none; color:var(--muted); cursor:pointer; font-size:13px; line-height:1; padding:0; }
+.chip button:hover { color:var(--red); }
+.inline-form { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+.inline-form input, .inline-form select { padding:8px 11px; border:1px solid var(--border); border-radius:8px; font-size:var(--text-xs); background:var(--surface); color:var(--ink); font-family:var(--font-body); }
+
 table { width:100%; border-collapse:collapse; font-size:var(--text-sm); }
-th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); padding:8px 12px; border-bottom:1px solid var(--border); }
-td { padding:10px 12px; border-bottom:1px solid var(--border); }
+th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); padding:10px 12px; border-bottom:1px solid var(--border); }
+td { padding:12px; border-bottom:1px solid var(--border); }
 tr:hover td { background:var(--surface); }
 
-.badge { font-size:10px; font-weight:700; padding:3px 9px; border-radius:99px; text-transform:uppercase; }
-.badge.green { background:var(--green-light); color:var(--green); }
+.badge { font-size:10px; font-weight:700; padding:4px 10px; border-radius:99px; text-transform:uppercase; }
+.badge.green { background:var(--teal-light); color:var(--teal-vibrant); }
 .badge.red { background:var(--red-light); color:var(--red); }
 .badge.gold { background:var(--gold-bg); color:var(--gold); }
+.badge.purple { background:var(--purple-light); color:var(--purple); }
 
 .spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,0.4); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
 .spinner.dark { border:2px solid rgba(0,0,0,0.15); border-top-color:var(--gold); }
 @keyframes spin { to { transform:rotate(360deg); } }
 
 .empty { text-align:center; padding:40px 20px; color:var(--muted); font-size:var(--text-sm); }
-.notice { background:var(--gold-bg); border:1px solid rgba(201,162,39,0.3); color:var(--ink-2); font-size:var(--text-xs); padding:10px 13px; border-radius:9px; margin-bottom:18px; line-height:1.5; }
+.notice { background:var(--gold-bg); border:1px solid rgba(46,137,255,0.25); color:var(--ink-2); font-size:var(--text-xs); padding:11px 14px; border-radius:var(--radius); margin-bottom:18px; line-height:1.5; }
+[data-theme="light"] .notice { border-color:rgba(201,162,39,0.3); }
 
-.modal-overlay { position:fixed; inset:0; background:rgba(13,15,20,0.5); display:flex; align-items:center; justify-content:center; z-index:200; padding:20px; }
-.modal { background:var(--white); border-radius:var(--radius-lg); max-width:520px; width:100%; padding:24px; max-height:85vh; overflow:auto; }
+.modal-overlay { position:fixed; inset:0; background:rgba(13,15,20,0.55); display:flex; align-items:center; justify-content:center; z-index:200; padding:20px; backdrop-filter:blur(3px); }
+.modal { background:var(--white); border:1px solid var(--border); border-radius:var(--radius-lg); max-width:560px; width:100%; padding:24px; max-height:85vh; overflow:auto; box-shadow:var(--shadow-xl); }
 .modal h3 { margin:0 0 12px; font-family:var(--font-display); }
 
+/* ── Mobile: top bar + slide-out drawer (sidebar content is reused, not duplicated) ── */
+.mobile-topbar { display:none; }
+.drawer-backdrop { display:none; }
 @media (max-width:840px) {
   .app-shell { flex-direction:column; }
-  .sidebar { width:100%; flex-direction:row; align-items:center; padding:12px 16px; overflow-x:auto; }
-  .sidebar-logo, .sidebar-foot { display:none; }
-  .main { padding:20px 16px; }
+  .mobile-topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    height:56px; padding:0 14px; background:var(--surface); border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:80;
+  }
+  .mobile-topbar .left { display:flex; align-items:center; gap:10px; }
+  .mobile-topbar h1 { font-family:var(--font-display); font-size:1rem; margin:0; color:var(--gold); }
+  .mobile-menu-btn { background:none; border:none; color:var(--ink); padding:6px; border-radius:8px; cursor:pointer; }
+  .mobile-menu-btn:active { background:var(--elevated); }
+  .sidebar {
+    position:fixed; top:0; left:0; height:100vh; width:84vw; max-width:300px;
+    transform:translateX(-105%); transition:transform 0.28s cubic-bezier(0.4,0,0.2,1);
+    z-index:101; box-shadow:var(--shadow-xl); overflow-y:auto;
+  }
+  .sidebar.open { transform:translateX(0); }
+  .drawer-backdrop.open {
+    display:block; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100;
+  }
+  .main { padding:18px 14px 40px; }
+  .section-grid { grid-template-columns:1fr; }
+  .page-head h2 { font-size:1.4rem; }
 }
+
+/* ── Theme toggle (pill switch) ── */
+.theme-toggle-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 12px; border-radius:var(--radius); margin-bottom:6px;
+  font-size:var(--text-sm); color:var(--slate); font-weight:500;
+  background:var(--elevated);
+}
+.theme-toggle-row .label-group { display:flex; align-items:center; gap:9px; }
+.theme-switch {
+  position:relative; width:42px; height:24px; border-radius:99px;
+  background:var(--border); border:none; cursor:pointer; flex-shrink:0;
+  transition: background var(--transition);
+  padding:0;
+}
+.theme-switch.on { background:var(--gold); }
+.theme-switch .knob {
+  position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%;
+  background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.3);
+  display:flex; align-items:center; justify-content:center;
+  transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.theme-switch.on .knob { transform: translateX(18px); }
+
 </style>
 </head>
 <body>
 <div id="root"></div>
 
-<script type="text/babel" data-presets="react,env">
-const { useState, useEffect, useRef, useCallback } = React;
+<script>
+const { useState, useEffect } = React;
+const h = React.createElement;
 
 /* ════════════════════════════════════════════════════
-   CONFIG — placeholders to be filled in by Ant
+   ICONS — inline SVG (no external font dependency, so they
+   never break over file:// or flaky network conditions)
    ════════════════════════════════════════════════════ */
+const ICON_PATHS = {
+  terminal: "M4 17l6-6-6-6M12 19h8",
+  upload_file: "M12 16V4M12 4l-4 4M12 4l4 4M5 20h14",
+  description: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM14 2v6h6M9 13h6M9 17h6",
+  fact_check: "M4 4h16v16H4V4zM8 10l2 2 4-4M8 16h8",
+  dark_mode: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
+  light_mode: "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42",
+  logout: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
+  hourglass_top: "M6 2h12M6 22h12M6 2v4a6 6 0 0 0 6 6 6 6 0 0 0 6-6V2M6 22v-4a6 6 0 0 1 6-6 6 6 0 0 1 6 6v4",
+  check_circle: "M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3",
+  person: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"
+};
+function Icon(name, props) {
+  props = props || {};
+  const size = props.size || 20;
+  const style = Object.assign({ display: "inline-block", verticalAlign: "middle", flexShrink: 0 }, props.style || {});
+  return h("svg", {
+    width: size, height: size, viewBox: "0 0 24 24", fill: "none",
+    stroke: "currentColor", strokeWidth: props.strokeWidth || 2,
+    strokeLinecap: "round", strokeLinejoin: "round", style
+  }, h("path", { d: ICON_PATHS[name] || "" }));
+}
 
-// Firebase project for E-Tuklas Online Checker (standalone — own project, own users)
+/* ════════════════════════════════════════════════════
+   CONFIG
+   ════════════════════════════════════════════════════ */
 const firebaseConfig = {
   apiKey: "AIzaSyC5ZYilIDXEcwwS7zLak87YT4Cm79MD_WM",
   authDomain: "etuklasoc.firebaseapp.com",
@@ -220,63 +373,91 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-/* AI provider — swappable. Default: Gemini free tier.
-   Key is entered once by a teacher/admin via Settings and stored in
-   Firestore (config/ai doc). NOTE: any key embedded in client-side code
-   is visible to anyone who opens devtools — fine for a free-tier key
-   with no billing attached, NOT fine if this is ever swapped for a
-   paid/billed key. Flag this before going live school-wide. */
 const AI_PROVIDERS = {
   gemini: {
-    label: "Gemini 2.0 Flash (free tier)",
-    endpoint: (key) => `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-    buildBody: (prompt) => ({ contents: [{ parts: [{ text: prompt }] }] }),
-    extractText: (data) => data?.candidates?.[0]?.content?.parts?.[0]?.text || ""
+    label: "Gemini 2.5 Flash",
+    endpoint: () => `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
+    // temperature: 0 — same text must produce the same grade every time.
+    buildBody: (prompt) => ({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0 } }),
+    extractText: (data) => (data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text) || "",
+    headersFn: (key) => ({ "Content-Type": "application/json", "x-goog-api-key": key })
+  },
+  qwen_free: {
+    label: "Qwen3.6 Plus Preview — FREE (OpenRouter, needs Privacy settings enabled) + Groq fallback",
+    endpoint: () => `https://openrouter.ai/api/v1/chat/completions`,
+    buildBody: (prompt) => ({ model: "qwen/qwen3.6-plus-preview:free", messages: [{ role: "user", content: prompt }], temperature: 0 }),
+    extractText: (data) => ((data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || ""),
+    headersFn: (key) => ({ "Content-Type": "application/json", "Authorization": "Bearer " + key, "HTTP-Referer": "https://etuklasoc.web.app", "X-Title": "E-Tuklas Online Checker" })
+  },
+  qwen_paid: {
+    label: "Qwen3.6 Plus (OpenRouter — paid)",
+    endpoint: () => `https://openrouter.ai/api/v1/chat/completions`,
+    buildBody: (prompt) => ({ model: "qwen/qwen3.6-plus", messages: [{ role: "user", content: prompt }], temperature: 0 }),
+    extractText: (data) => ((data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || ""),
+    headersFn: (key) => ({ "Content-Type": "application/json", "Authorization": "Bearer " + key, "HTTP-Referer": "https://etuklasoc.web.app", "X-Title": "E-Tuklas Online Checker" })
+  },
+  groq: {
+    label: "Groq — GPT-OSS 120B (free tier, fast)",
+    endpoint: () => `https://api.groq.com/openai/v1/chat/completions`,
+    buildBody: (prompt) => ({ model: "openai/gpt-oss-120b", messages: [{ role: "user", content: prompt }], max_tokens: 1000, temperature: 0 }),
+    extractText: (data) => ((data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || ""),
+    headersFn: (key) => ({ "Content-Type": "application/json", "Authorization": "Bearer " + key })
   },
   claude: {
-    label: "Claude (Anthropic API — paid)",
+    label: "Claude (Anthropic — paid)",
     endpoint: () => `https://api.anthropic.com/v1/messages`,
-    buildBody: (prompt) => ({ model: "claude-sonnet-4-6", max_tokens: 1000, messages: [{ role: "user", content: prompt }] }),
-    extractText: (data) => (data?.content || []).map(c => c.text || "").join("\n")
+    buildBody: (prompt) => ({ model: "claude-sonnet-4-6", max_tokens: 1000, temperature: 0, messages: [{ role: "user", content: prompt }] }),
+    extractText: (data) => ((data && data.content) || []).map(c => c.text || "").join("\n"),
+    headersFn: (key) => ({ "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" })
   }
 };
 
-/* Research sections students must submit, one file each.
-   This is the BASIS list — replace with Ant's actual program structure
-   once finalized (some STE formats split Background/Rationale, some don't). */
 const SECTIONS = [
   { id: "abstract",    label: "Abstract" },
   { id: "rationale",   label: "Rationale / Background of the Study" },
   { id: "methodology", label: "Methodology" }
 ];
 
-/* Structural rubric — HARD checks only, used until Ant sends the real
-   criteria. These never make a "this research is bad" judgment call —
-   only "this does/doesn't structurally belong in this section," so a
-   harsh verdict is never issued on a guessed standard. */
-const DEFAULT_CRITERIA = `
-You are reviewing a single section of a student research paper for a Philippine
-Senior High School STE (Science, Technology, Engineering) program submission
-portal called E-Tuklas. You are reviewing ONLY the "{SECTION_LABEL}" section.
+const CATEGORIES = [
+  "Life Science",
+  "Mathematical and Computational Science",
+  "Physical Science",
+  "Robotics and Intelligent Machines",
+  "Innovation Expo"
+];
 
-Apply STRUCTURAL criteria only, not literary or scientific quality judgment,
-because the school has not yet supplied its official content rubric:
-1. Does the text plausibly belong in a "{SECTION_LABEL}" section of a research
-   paper (not an obviously wrong section, not boilerplate, not lorem ipsum,
-   not blank/near-blank)?
-2. Is it written in coherent academic English/Filipino prose (not random
-   text, not copy-pasted instructions, not a different assignment entirely)?
-3. Is it a reasonable length for this section (roughly 80-600 words; flag if
-   wildly outside that without rejecting automatically — note it instead)?
+const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB per part, per the brief
+
+const DEFAULT_CRITERIA = `
+You are the official AI reviewer for E-Tuklas, a Philippine Junior High School
+(Grade 8-10) research portal. You are grading ONLY the "{SECTION_LABEL}"
+section of a student research paper. This grade is shown directly to the
+student and to their teacher, and the teacher may revise it afterward — so it
+must be seriously honest, specific, and fair. Do not be falsely encouraging
+and do not be needlessly harsh. Grade exactly what is on the page.
+
+Score these four criteria out of 25 points each (100 total):
+1. Relevance — does the content actually belong in a "{SECTION_LABEL}" section
+   and address what that section is supposed to cover, for a JHS-level study?
+2. Coherence & Clarity — is it written in clear, logically ordered academic
+   English or Filipino prose a Grade 8-10 reader could follow?
+3. Completeness — does it cover what a "{SECTION_LABEL}" section needs (not
+   padded, not a one-line stub, not copy-pasted instructions)?
+4. Academic Tone & Mechanics — appropriate register, grammar, and structure
+   for a school research submission (not casual chat text, not obvious
+   placeholder/lorem ipsum).
+
+Total the four scores into scorePercent (0-100). Decide status by total:
+- 80-100: "approved"
+- 50-79: "needs_revision"
+- 0-49: "rejected"
 
 Respond ONLY in this exact JSON shape, no markdown fences, no preamble:
-{"verdict":"accepted" | "rejected","reasoning":"2-4 sentences, direct and honest, explaining exactly why, in language a Grade 11-12 student can act on"}
+{"status":"approved" | "needs_revision" | "rejected","scorePercent":0,"criteria":[{"name":"Relevance","score":0,"max":25,"note":"one short honest sentence"},{"name":"Coherence & Clarity","score":0,"max":25,"note":"one short honest sentence"},{"name":"Completeness","score":0,"max":25,"note":"one short honest sentence"},{"name":"Academic Tone & Mechanics","score":0,"max":25,"note":"one short honest sentence"}],"remarks":"2-4 sentences: a direct, specific, honest summary of what is good and exactly what needs to change, written for a Grade 8-10 student to act on"}
 
-Be honest and direct in "reasoning" — do not soften a real structural problem,
-but do not invent quality complaints outside the three checks above. If it
-passes the three structural checks, accept it even if the writing could be
-better; that quality judgment is not yours to make until the real rubric is
-loaded.
+scorePercent MUST equal the sum of the four criteria scores. Be consistent:
+the same quality of writing should get the same grade every time. Do not
+invent praise that isn't earned and do not invent flaws that aren't there.
 
 SECTION TEXT TO REVIEW:
 """
@@ -287,38 +468,68 @@ SECTION TEXT TO REVIEW:
 /* ════════════════════════════════════════════════════
    AI CALL
    ════════════════════════════════════════════════════ */
-async function reviewSection(sectionLabel, text, providerKey, apiKey) {
-  const provider = AI_PROVIDERS[providerKey];
+async function reviewSection(sectionLabel, text, providerKey, apiKey, groqKey) {
   const prompt = DEFAULT_CRITERIA
     .replaceAll("{SECTION_LABEL}", sectionLabel)
     .replace("{TEXT}", text.slice(0, 12000));
 
-  const res = await fetch(provider.endpoint(apiKey), {
-    method: "POST",
-    headers: providerKey === "claude"
-      ? { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" }
-      : { "Content-Type": "application/json" },
-    body: JSON.stringify(provider.buildBody(prompt))
-  });
-  if (!res.ok) throw new Error(`AI request failed (${res.status})`);
-  const data = await res.json();
-  let raw = provider.extractText(data).trim();
-  raw = raw.replace(/^```json\s*|^```\s*|```$/g, "").trim();
-  let parsed;
-  try { parsed = JSON.parse(raw); }
-  catch (e) { throw new Error("Could not parse AI verdict — raw response: " + raw.slice(0,200)); }
-  if (!parsed.verdict || !parsed.reasoning) throw new Error("AI verdict missing required fields");
-  return parsed;
+  async function callProvider(pKey) {
+    const provider = AI_PROVIDERS[pKey];
+    const keyToUse = pKey === "groq" ? (groqKey || apiKey) : apiKey;
+    const res = await fetch(provider.endpoint(), {
+      method: "POST",
+      headers: provider.headersFn(keyToUse),
+      body: JSON.stringify(provider.buildBody(prompt))
+    });
+    if (!res.ok) {
+      let detail = "";
+      try { const errBody = await res.json(); detail = (errBody && errBody.error && errBody.error.message) || ""; } catch(e) {}
+      const err = new Error(`AI request failed (${res.status})${detail ? ": " + detail : ""}`);
+      err.status = res.status;
+      throw err;
+    }
+    const data = await res.json();
+    let raw = provider.extractText(data).trim();
+    raw = raw.replace(/^```json\s*|^```\s*|```$/g, "").trim();
+    // Strip Qwen's <think>…</think> reasoning block if present
+    raw = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    let parsed;
+    try { parsed = JSON.parse(raw); }
+    catch (e) { throw new Error("Could not parse AI verdict — raw: " + raw.slice(0, 200)); }
+    if (!parsed.status || typeof parsed.scorePercent !== "number" || !Array.isArray(parsed.criteria)) {
+      throw new Error("AI verdict missing required fields — raw: " + raw.slice(0, 200));
+    }
+    return parsed;
+  }
+
+  // Grading consistency depends on every verdict coming from the exact same
+  // model at temperature 0. Silently falling back to a *different* provider
+  // on error would reintroduce "same abstract, different score" through the
+  // back door, so a transient failure gets retried on the SAME provider
+  // (with backoff) instead of being handed to a different model.
+  let lastErr;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await callProvider(providerKey);
+    } catch (err) {
+      lastErr = err;
+      const retryable = err.status === 429 || err.status >= 500 || !err.status;
+      if (!retryable || attempt === 2) throw err;
+      await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
+    }
+  }
+  throw lastErr;
 }
 
 /* ════════════════════════════════════════════════════
    FILE PARSING
    ════════════════════════════════════════════════════ */
 async function extractFileText(file) {
-  const name = file.name.toLowerCase();
-  if (name.endsWith(".txt")) {
-    return await file.text();
+  if (file.size > MAX_FILE_BYTES) {
+    throw new Error(`File is ${(file.size/1024/1024).toFixed(1)}MB — the limit is 5MB per section. Try a smaller export or compress images out of the document.`);
   }
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".txt")) return await file.text();
   if (name.endsWith(".docx")) {
     const buf = await file.arrayBuffer();
     const result = await mammoth.extractRawText({ arrayBuffer: buf });
@@ -328,11 +539,45 @@ async function extractFileText(file) {
 }
 
 /* ════════════════════════════════════════════════════
+   CONTENT HASHING
+   Lets a re-upload of unchanged text reuse the prior
+   verdict instead of re-grading — even at temperature 0,
+   re-grading is a wasted call for content that hasn't moved.
+   ════════════════════════════════════════════════════ */
+async function hashText(text) {
+  const normalized = text.trim().replace(/\s+/g, " ");
+  const bytes = new TextEncoder().encode(normalized);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/* ════════════════════════════════════════════════════
+   TEAM SUBMISSION KEY
+   A section's submission doc ID is derived from the sorted
+   set of team member emails, so every co-author who uploads
+   the same section lands on the SAME Firestore doc instead
+   of creating a competing one. That's what lets a teacher
+   grade a section once and have every teammate see that
+   exact grade, instead of each uploader getting their own.
+   ════════════════════════════════════════════════════ */
+function sortedTeamEmails(ownEmail, coAuthors) {
+  const all = [ownEmail].concat((coAuthors || []).map(c => c.email));
+  return Array.from(new Set(all.map(e => (e || "").toLowerCase().trim()))).sort();
+}
+function submissionDocId(sectionId, teamEmails) {
+  // djb2 — just needs to be stable and collision-resistant, not cryptographic.
+  const key = teamEmails.join("|");
+  let h = 5381;
+  for (let i = 0; i < key.length; i++) h = ((h * 33) ^ key.charCodeAt(i)) >>> 0;
+  return sectionId + "__" + h.toString(36);
+}
+
+/* ════════════════════════════════════════════════════
    AUTH PAGE
    ════════════════════════════════════════════════════ */
 function AuthPage({ onLogin }) {
   const [tab, setTab] = useState("login");
-  const [form, setForm] = useState({ name:"", email:"", password:"", role:"student" });
+  const [form, setForm] = useState({ name:"", email:"", password:"" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const sf = (k,v) => setForm(f => ({ ...f, [k]: v }));
@@ -343,248 +588,848 @@ function AuthPage({ onLogin }) {
       if (tab === "login") {
         const cred = await auth.signInWithEmailAndPassword(form.email, form.password);
         const snap = await db.collection("users").doc(cred.user.uid).get();
-        onLogin({ uid: cred.user.uid, ...snap.data() });
+        onLogin(Object.assign({ uid: cred.user.uid }, snap.data()));
       } else {
         const cred = await auth.createUserWithEmailAndPassword(form.email, form.password);
-        const userDoc = { name: form.name, email: form.email, role: form.role, createdAt: new Date().toISOString() };
+        // Everyone signs up as an unapproved student. Teacher access is granted
+        // later by an existing teacher — never chosen by the signing-up user.
+        const userDoc = { name: form.name, email: form.email.trim().toLowerCase(), role: "student", approved: false, createdAt: new Date().toISOString() };
         await db.collection("users").doc(cred.user.uid).set(userDoc);
-        onLogin({ uid: cred.user.uid, ...userDoc });
+        onLogin(Object.assign({ uid: cred.user.uid }, userDoc));
       }
     } catch (e) {
       setError(e.message.replace("Firebase: ", ""));
     } finally { setLoading(false); }
   };
 
-  return (
-    <div className="auth-shell">
-      <div className="auth-card">
-        <div className="auth-logo">
-          <h1>E-Tuklas <span>Online Checker</span></h1>
-          <p>Automated Research Submission Review</p>
-        </div>
-        <div className="auth-tabs">
-          <button className={`auth-tab${tab==="login"?" active":""}`} onClick={()=>setTab("login")}>Sign In</button>
-          <button className={`auth-tab${tab==="signup"?" active":""}`} onClick={()=>setTab("signup")}>Create Account</button>
-        </div>
-        {error && <div className="auth-error">{error}</div>}
-        {tab === "signup" && (
-          <div className="field">
-            <label>Full Name</label>
-            <input value={form.name} onChange={e=>sf("name",e.target.value)} placeholder="Juan Dela Cruz"/>
-          </div>
-        )}
-        <div className="field">
-          <label>Email</label>
-          <input type="email" value={form.email} onChange={e=>sf("email",e.target.value)} placeholder="you@school.edu.ph"/>
-        </div>
-        <div className="field">
-          <label>Password</label>
-          <input type="password" value={form.password} onChange={e=>sf("password",e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="••••••••"/>
-        </div>
-        {tab === "signup" && (
-          <div className="field">
-            <label>Role</label>
-            <select value={form.role} onChange={e=>sf("role",e.target.value)}>
-              <option value="student">Student</option>
-              <option value="teacher">Teacher / Admin</option>
-            </select>
-          </div>
-        )}
-        <button className="btn btn-gold btn-full" onClick={submit} disabled={loading} style={{height:46, marginTop:6}}>
-          {loading ? <span className="spinner"></span> : (tab==="login" ? "Sign In" : "Create Account")}
-        </button>
-      </div>
-    </div>
+  return h("div", { className: "auth-shell" },
+    h("div", { className: "auth-card" },
+      h("div", { className: "auth-logo" },
+        h("h1", null, "E-Tuklas ", h("span", null, "Online Checker")),
+        h("p", null, "Automated Research Submission Review")
+      ),
+      h("div", { className: "auth-tabs" },
+        h("button", { className: "auth-tab" + (tab==="login"?" active":""), onClick: () => setTab("login") }, "Sign In"),
+        h("button", { className: "auth-tab" + (tab==="signup"?" active":""), onClick: () => setTab("signup") }, "Create Account")
+      ),
+      error ? h("div", { className: "auth-error" }, error) : null,
+      tab === "signup" ? h("div", { className: "field" },
+        h("label", null, "Full Name"),
+        h("input", { value: form.name, onChange: e => sf("name", e.target.value), placeholder: "Juan Dela Cruz" })
+      ) : null,
+      h("div", { className: "field" },
+        h("label", null, "Email"),
+        h("input", { type: "email", value: form.email, onChange: e => sf("email", e.target.value), placeholder: "you@school.edu.ph" })
+      ),
+      h("div", { className: "field" },
+        h("label", null, "Password"),
+        h("input", { type: "password", value: form.password, onChange: e => sf("password", e.target.value), onKeyDown: e => e.key === "Enter" && submit(), placeholder: "••••••••" })
+      ),
+      tab === "signup" ? h("p", { style: { fontSize: "11px", color: "var(--muted)", margin: "-4px 0 6px" } },
+        "New accounts start as students and need a teacher to approve access."
+      ) : null,
+      h("button", { className: "btn btn-gold btn-full", onClick: submit, disabled: loading, style: { height: 46, marginTop: 6 } },
+        loading ? h("span", { className: "spinner" }) : (tab === "login" ? "Sign In" : "Create Account")
+      )
+    )
   );
 }
 
 /* ════════════════════════════════════════════════════
-   STUDENT DASHBOARD — per-section upload + auto review
+   PENDING APPROVAL SCREEN
+   ════════════════════════════════════════════════════ */
+function PendingApproval({ user, onSignOut }) {
+  return h("div", { className: "auth-shell" },
+    h("div", { className: "auth-card" },
+      h("div", { className: "auth-logo" },
+        h("h1", null, "E-Tuklas ", h("span", null, "Online Checker")),
+        h("p", null, "Automated Research Submission Review")
+      ),
+      h("div", { style: { textAlign: "center", padding: "8px 4px 4px" } },
+        Icon("hourglass_top", { size: 36 }),
+        h("h3", { style: { margin: "10px 0 6px" } }, "Waiting for teacher approval"),
+        h("p", { style: { fontSize: "var(--text-sm)", color: "var(--muted)", margin: "0 0 18px" } },
+          `Hi ${user.name || ""}, your account has been created but a teacher needs to approve it before you can upload or view sections. Check back later, or ask your teacher to approve "${user.email}" in their Dashboard.`
+        ),
+        h("button", { className: "btn btn-outline btn-full", onClick: onSignOut }, "Sign Out")
+      )
+    )
+  );
+}
+
+/* ════════════════════════════════════════════════════
+   STUDENT DASHBOARD
    ════════════════════════════════════════════════════ */
 function StudentDashboard({ user, aiConfig }) {
   const [sections, setSections] = useState(() => {
     const init = {};
-    SECTIONS.forEach(s => init[s.id] = { status:"pending", fileName:null, verdict:null, text:null });
+    SECTIONS.forEach(s => init[s.id] = { status:"pending", fileName:null, uploaderName:null, ai:null, teacher:null });
     return init;
   });
+  // Project setup — category + individual/team + co-authors — is owned by
+  // the student and stored on their own user doc, so there's no separate
+  // "groups" collection or teacher-side write involved at all.
+  const [catDraft, setCatDraft] = useState(user.category || "");
+  const [teamModeDraft, setTeamModeDraft] = useState(user.teamMode || "individual");
+  const [coAuthorsDraft, setCoAuthorsDraft] = useState(user.coAuthors || []);
+  const [coName, setCoName] = useState("");
+  const [coEmail, setCoEmail] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [people, setPeople] = useState([]);
+  const [setupSaving, setSetupSaving] = useState(false);
+  const [setupError, setSetupError] = useState("");
+  const [setupDirty, setSetupDirty] = useState(false);
 
   useEffect(() => {
-    db.collection("submissions").where("studentUid","==",user.uid).get().then(snap => {
-      setSections(prev => {
-        const next = { ...prev };
-        snap.forEach(doc => {
-          const d = doc.data();
-          next[d.sectionId] = { status: d.verdict, fileName: d.fileName, verdict: { verdict: d.verdict, reasoning: d.reasoning }, text: null };
+    if (setupDirty) return; // don't clobber what's mid-edit
+    setCatDraft(user.category || "");
+    setTeamModeDraft(user.teamMode || "individual");
+    setCoAuthorsDraft(user.coAuthors || []);
+  }, [user.category, user.teamMode, JSON.stringify(user.coAuthors || [])]);
+
+  useEffect(() => {
+    const unsub = db.collection("users").onSnapshot(snap => {
+      setPeople(snap.docs.map(d => Object.assign({ uid: d.id }, d.data())));
+    }, err => console.error("People listener error:", err.code, err.message));
+    return unsub;
+  }, []);
+
+  const coNameMatches = coName.trim().length > 0
+    ? people
+        .filter(p => p.role === "student" && p.approved !== false && p.uid !== user.uid)
+        .filter(p => !coAuthorsDraft.some(c => c.email === (p.email || "").toLowerCase()))
+        .filter(p => (p.name || "").toLowerCase().includes(coName.trim().toLowerCase()))
+        .slice(0, 5)
+    : [];
+
+  const pickSuggestion = (p) => {
+    setCoName(p.name || "");
+    setCoEmail(p.email || "");
+    setShowSuggestions(false);
+  };
+
+  const addCoAuthor = () => {
+    const name = coName.trim(), email = coEmail.trim().toLowerCase();
+    if (!name || !email) { setSetupError("Enter both a name and an email for your co-author."); return; }
+    if (email === (user.email || "").toLowerCase()) { setSetupError("That's your own email — you're already on the project."); return; }
+    if (coAuthorsDraft.some(c => c.email === email)) { setSetupError("That co-author is already listed."); return; }
+    setSetupError("");
+    setSetupDirty(true);
+    setCoAuthorsDraft(prev => prev.concat([{ name, email }]));
+    setCoName(""); setCoEmail("");
+  };
+  const removeCoAuthor = (email) => { setSetupDirty(true); setCoAuthorsDraft(prev => prev.filter(c => c.email !== email)); };
+
+  const saveSetup = async () => {
+    if (!catDraft) { setSetupError("Pick a research category first."); return; }
+    setSetupSaving(true); setSetupError("");
+    try {
+      await db.collection("users").doc(user.uid).update({
+        category: catDraft,
+        teamMode: teamModeDraft,
+        coAuthors: teamModeDraft === "team" ? coAuthorsDraft : []
+      });
+      // A submission's teamEmails is a snapshot taken at upload time, so
+      // tagging/removing a co-author after the fact wouldn't reach anything
+      // already uploaded — back-fill every submission this student has made
+      // so far with the freshly-saved roster.
+      const ownEmail = (user.email || "").toLowerCase();
+      const newCoAuthors = teamModeDraft === "team" ? coAuthorsDraft : [];
+      const newTeamEmails = sortedTeamEmails(ownEmail, newCoAuthors);
+      // Metadata-only patch: this only ever touches teamEmails/coAuthors/teamMode,
+      // matching the Firestore rule that lets an original uploader refresh those
+      // three fields without needing broader update or delete permissions. If the
+      // roster change means a *different* doc ID going forward, the next upload
+      // simply starts a fresh shared record for that section — this one is left
+      // in place as history rather than migrated (migrating would require
+      // students to have delete rights, which the rules intentionally reserve
+      // for teachers).
+      const existing = await db.collection("submissions").where("uploaderUid","==",user.uid).get();
+      if (!existing.empty) {
+        const batch = db.batch();
+        existing.docs.forEach(doc => batch.update(doc.ref, {
+          teamMode: teamModeDraft, coAuthors: newCoAuthors, teamEmails: newTeamEmails
+        }));
+        await batch.commit();
+      }
+      setSetupDirty(false);
+    } catch (e) { setSetupError(e.message); }
+    finally { setSetupSaving(false); }
+  };
+
+  const [teamBanner, setTeamBanner] = useState([]);
+
+  useEffect(() => {
+    let own = {}, team = {};
+    const rebuild = () => {
+      setSections(() => {
+        const next = {};
+        SECTIONS.forEach(s => { next[s.id] = { status:"pending", fileName:null, uploaderName:null, ai:null, teacher:null }; });
+        const allDocs = Object.values(own).concat(Object.values(team));
+        // If both partners uploaded the same section separately, there are
+        // two competing docs — always keep the most recently submitted one,
+        // deterministically, so every teammate sees the identical result
+        // instead of whichever happened to be last in a locally-built array.
+        const bySection = {};
+        allDocs.forEach(d => {
+          const existing = bySection[d.sectionId];
+          if (!existing || new Date(d.submittedAt || 0) >= new Date(existing.submittedAt || 0)) {
+            bySection[d.sectionId] = d;
+          }
         });
+        Object.values(bySection).forEach(d => {
+          const status = d.teacherVerdict ? d.teacherVerdict.status : (d.aiVerdict ? d.aiVerdict.status : "pending");
+          next[d.sectionId] = {
+            status, fileName: d.fileName, uploaderName: d.uploaderName,
+            ai: d.aiVerdict || null, teacher: d.teacherVerdict || null, provider: d.provider || null
+          };
+        });
+        // Figure out who else is on this project even if the person viewing
+        // never set up Team mode themselves (e.g. they were only tagged by
+        // a teammate) — collect every distinct name across shared docs.
+        const myEmail = (user.email || "").toLowerCase();
+        const others = new Set();
+        allDocs.forEach(d => {
+          if (d.uploaderEmail && d.uploaderEmail !== myEmail) others.add(d.uploaderName || d.uploaderEmail);
+          (d.coAuthors || []).forEach(c => { if (c.email !== myEmail) others.add(c.name || c.email); });
+        });
+        setTeamBanner(Array.from(others));
         return next;
       });
-    });
-  }, [user.uid]);
+    };
+    const unsub1 = db.collection("submissions").where("uploaderUid","==",user.uid)
+      .onSnapshot(snap => { own = {}; snap.forEach(doc => own[doc.id] = doc.data()); rebuild(); },
+        err => console.error("Submissions (own) listener error:", err.code, err.message));
+    const unsub2 = user.email
+      ? db.collection("submissions").where("teamEmails","array-contains", user.email.toLowerCase())
+          .onSnapshot(snap => { team = {}; snap.forEach(doc => team[doc.id] = doc.data()); rebuild(); },
+            err => console.error("Submissions (team) listener error:", err.code, err.message))
+      : () => {};
+    return () => { unsub1(); unsub2(); };
+  }, [user.uid, user.email]);
 
   const handleFile = async (sectionId, sectionLabel, file) => {
-    setSections(prev => ({ ...prev, [sectionId]: { ...prev[sectionId], status:"checking", fileName:file.name } }));
+    setSections(prev => Object.assign({}, prev, { [sectionId]: Object.assign({}, prev[sectionId], { status:"checking", fileName:file.name }) }));
     try {
       const text = await extractFileText(file);
       if (!aiConfig.apiKey) throw new Error("AI provider not configured yet — ask your teacher/admin to set it up in Settings.");
-      const verdict = await reviewSection(sectionLabel, text, aiConfig.provider, aiConfig.apiKey);
-      setSections(prev => ({ ...prev, [sectionId]: { status: verdict.verdict, fileName:file.name, verdict, text } }));
-      await db.collection("submissions").add({
-        studentUid: user.uid, studentName: user.name, sectionId, sectionLabel,
-        fileName: file.name, verdict: verdict.verdict, reasoning: verdict.reasoning,
-        provider: aiConfig.provider, submittedAt: new Date().toISOString()
+
+      // Re-fetch the user doc right before writing the submission instead of
+      // trusting the `user` prop, which comes from a live listener that can
+      // lag a moment behind a just-saved Project Setup (save, then upload
+      // immediately = stale teamMode/coAuthors otherwise).
+      const freshSnap = await db.collection("users").doc(user.uid).get();
+      const freshUser = freshSnap.exists ? freshSnap.data() : {};
+      const liveTeamMode = freshUser.teamMode || "individual";
+      const liveCoAuthors = liveTeamMode === "team" ? (freshUser.coAuthors || []) : [];
+      const ownEmail = (freshUser.email || user.email || "").toLowerCase();
+      const teamEmails = sortedTeamEmails(ownEmail, liveCoAuthors);
+      const docId = submissionDocId(sectionId, teamEmails);
+      const textHash = await hashText(text);
+
+      // One shared doc per team+section: whoever uploads lands on the same
+      // record. If the text hasn't actually changed since the last upload
+      // (whitespace-insensitive), reuse that verdict — including any
+      // teacher revision — instead of re-grading and instead of letting a
+      // second co-author's upload silently replace a teacher's decision.
+      const existingSnap = await db.collection("submissions").doc(docId).get();
+      const existing = existingSnap.exists ? existingSnap.data() : null;
+      const unchanged = !!(existing && existing.textHash === textHash);
+
+      const ai = unchanged ? existing.aiVerdict
+        : await reviewSection(sectionLabel, text, aiConfig.provider, aiConfig.apiKey, aiConfig.groqKey || "");
+      // Content changed → any prior teacher review no longer applies to
+      // what's on the page now, so it resets. Content unchanged → keep it.
+      const teacherVerdict = unchanged ? (existing.teacherVerdict || null) : null;
+
+      setSections(prev => Object.assign({}, prev, { [sectionId]: {
+        status: teacherVerdict ? teacherVerdict.status : ai.status,
+        fileName: file.name, uploaderName: user.name, ai, teacher: teacherVerdict, provider: aiConfig.provider
+      } }));
+
+      await db.collection("submissions").doc(docId).set({
+        uploaderUid: user.uid, uploaderName: user.name, uploaderEmail: ownEmail,
+        category: freshUser.category || null,
+        teamMode: liveTeamMode,
+        coAuthors: liveCoAuthors,
+        teamEmails,
+        sectionId, sectionLabel, fileName: file.name, textHash,
+        aiVerdict: ai, teacherVerdict,
+        provider: aiConfig.provider,
+        submittedAt: unchanged ? (existing.submittedAt || new Date().toISOString()) : new Date().toISOString(),
+        lastUploadedAt: new Date().toISOString(), lastUploadedBy: user.name
       });
     } catch (e) {
-      setSections(prev => ({ ...prev, [sectionId]: { status:"rejected", fileName:file.name, verdict:{ verdict:"rejected", reasoning:"System error: " + e.message } } }));
+      setSections(prev => Object.assign({}, prev, { [sectionId]: { status:"error", fileName:file.name, ai:{ status:"error", scorePercent:0, criteria:[], remarks: "System error: " + e.message } } }));
     }
   };
 
-  return (
-    <>
-      <div className="page-head">
-        <h2>My Submissions</h2>
-        <p>Upload each research part as a separate .docx or .txt file. Review is automatic and final.</p>
-      </div>
-      {!aiConfig.apiKey && (
-        <div className="notice">
-          The AI reviewer hasn't been configured yet by your teacher/admin. Uploads will be accepted but won't be auto-reviewed until that's set up.
-        </div>
-      )}
-      <div className="section-grid">
-        {SECTIONS.map(s => {
-          const st = sections[s.id];
-          return (
-            <div key={s.id} className={`upload-card${st.fileName?" has-file":""}`}>
-              <div className="upload-card-head">
-                <strong>{s.label}</strong>
-                <span className={`status-pill ${st.status}`}>
-                  {st.status === "checking" ? "Reviewing…" : st.status}
-                </span>
-              </div>
-              <label className="dropzone">
-                <span className="material-symbols-outlined">upload_file</span><br/>
-                {st.fileName ? "Replace file" : "Click to upload .docx or .txt"}
-                <input type="file" accept=".docx,.txt" style={{display:"none"}}
-                  onChange={e => e.target.files[0] && handleFile(s.id, s.label, e.target.files[0])}/>
-              </label>
-              {st.fileName && (
-                <div className="filename-row">
-                  <span className="material-symbols-outlined" style={{fontSize:16}}>description</span>
-                  {st.fileName}
-                </div>
-              )}
-              {st.status === "checking" && (
-                <div className="verdict-box" style={{background:"var(--surface)"}}>
-                  <span className="spinner dark" style={{display:"inline-block",marginRight:6,verticalAlign:"-2px"}}></span>
-                  AI is reviewing this section against current criteria…
-                </div>
-              )}
-              {st.verdict && st.status !== "checking" && (
-                <div className={`verdict-box ${st.status}`}>
-                  <strong>{st.status === "accepted" ? "Accepted" : "Rejected"}</strong>
-                  {st.verdict.reasoning}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </>
+  const pillLabel = (status) => ({
+    pending: "pending", checking: "Reviewing…", approved: "approved",
+    needs_revision: "needs revision", rejected: "rejected", error: "upload error"
+  }[status] || status);
+
+  const barColor = (status) => status === "approved" ? "var(--teal-vibrant)" : status === "needs_revision" ? "var(--gold)" : "var(--red)";
+
+  return h(React.Fragment, null,
+    h("div", { className: "page-head" },
+      h("h2", null, "My Submissions"),
+      h("p", null, (user.teamMode === "team" && (user.coAuthors || []).length)
+        ? `Team project — ${user.coAuthors.length} co-author${user.coAuthors.length > 1 ? "s" : ""} share this grade. Any teammate's upload counts for everyone.`
+        : teamBanner.length
+          ? `Team project with ${teamBanner.join(", ")} — you're sharing grades on this project.`
+          : "Upload each research part as a separate .docx or .txt file (5MB max each).")
+    ),
+    h("div", { className: "card", style: { marginBottom: 16 } },
+      h("strong", { style: { fontSize: "var(--text-sm)" } }, "Project Setup"),
+      h("p", { style: { fontSize: "var(--text-xs)", color: "var(--muted)", margin: "4px 0 12px" } },
+        "Pick your research category and tell us if you're working solo or with co-authors — teammates automatically share whatever grade an uploaded section gets."
+      ),
+      h("div", { className: "field" },
+        h("label", null, "Research Category"),
+        h("select", { value: catDraft, onChange: e => { setCatDraft(e.target.value); setSetupDirty(true); } },
+          h("option", { value: "" }, "Select a category…"),
+          CATEGORIES.map(c => h("option", { key: c, value: c }, c))
+        )
+      ),
+      h("div", { className: "field" },
+        h("label", null, "Individual or Team?"),
+        h("div", { style: { display: "flex", gap: 8 } },
+          h("button", { type: "button", className: "btn " + (teamModeDraft === "individual" ? "btn-gold" : "btn-outline"),
+            onClick: () => { setTeamModeDraft("individual"); setSetupDirty(true); } }, "Individual"),
+          h("button", { type: "button", className: "btn " + (teamModeDraft === "team" ? "btn-gold" : "btn-outline"),
+            onClick: () => { setTeamModeDraft("team"); setSetupDirty(true); } }, "Team")
+        )
+      ),
+      teamModeDraft === "team" ? h(React.Fragment, null,
+        h("div", { className: "chip-row", style: { marginBottom: 8 } },
+          coAuthorsDraft.length === 0 ? h("span", { style: { fontSize: "var(--text-xs)", color: "var(--muted)" } }, "No co-authors added yet") :
+          coAuthorsDraft.map(c => h("span", { className: "chip", key: c.email },
+            c.name + " (" + c.email + ")",
+            h("button", { type: "button", onClick: () => removeCoAuthor(c.email), "aria-label": "Remove co-author" }, "×")
+          ))
+        ),
+        h("div", { className: "inline-form" },
+          h("div", { style: { position: "relative", flex: 1, minWidth: 160 } },
+            h("input", {
+              value: coName,
+              onChange: e => { setCoName(e.target.value); setShowSuggestions(true); },
+              onFocus: () => setShowSuggestions(true),
+              onBlur: () => setTimeout(() => setShowSuggestions(false), 150),
+              placeholder: "Co-author's full name",
+              style: { width: "100%" }
+            }),
+            (showSuggestions && coNameMatches.length > 0) ? h("div", {
+                style: {
+                  position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 10,
+                  background: "var(--white)", border: "1px solid var(--border)", borderRadius: 9,
+                  boxShadow: "var(--shadow)", overflow: "hidden"
+                }
+              },
+              coNameMatches.map(p => h("div", {
+                  key: p.uid,
+                  onMouseDown: () => pickSuggestion(p),
+                  style: { padding: "8px 12px", cursor: "pointer", fontSize: "var(--text-sm)", borderBottom: "1px solid var(--border)" }
+                },
+                h("div", { style: { fontWeight: 600 } }, p.name || "(no name)"),
+                h("div", { style: { fontSize: "11px", color: "var(--muted)" } }, p.email)
+              ))
+            ) : null
+          ),
+          h("input", { value: coEmail, onChange: e => setCoEmail(e.target.value), placeholder: "Co-author's account email", style: { flex: 1, minWidth: 180 } }),
+          h("button", { type: "button", className: "btn btn-outline", onClick: addCoAuthor }, "Add Co-Author")
+        ),
+        h("p", { style: { fontSize: "11px", color: "var(--muted)", marginTop: 6 } },
+          "Use the same email your co-author signs in with — that's how they'll see this project and get credit for the grade."
+        )
+      ) : null,
+      setupError ? h("p", { className: "field-error" }, setupError) : null,
+      h("button", { type: "button", className: "btn btn-gold", style: { marginTop: 10 },
+        disabled: setupSaving || !setupDirty, onClick: saveSetup },
+        setupSaving ? h("span", { className: "spinner" }) : "Save Project Setup"
+      )
+    ),
+    !aiConfig.apiKey ? h("div", { className: "notice" },
+      "The AI reviewer hasn't been configured yet by your teacher/admin. Uploads will be accepted but won't be auto-reviewed until that's set up."
+    ) : null,
+    h("div", { className: "section-grid" },
+      SECTIONS.map(s => {
+        const st = sections[s.id];
+        const verdict = st.teacher || st.ai;
+        return h("div", { key: s.id, className: "upload-card" + (st.fileName ? " has-file" : "") },
+          h("div", { className: "upload-card-head" },
+            h("strong", null, s.label),
+            h("span", { className: "status-pill " + st.status }, pillLabel(st.status))
+          ),
+          h("label", { className: "dropzone" },
+            Icon("upload_file"),
+            st.fileName ? "Replace file" : "Click to upload .docx or .txt",
+            h("input", { type: "file", accept: ".docx,.txt", style: { display: "none" },
+              onChange: e => e.target.files[0] && handleFile(s.id, s.label, e.target.files[0]) })
+          ),
+          st.fileName ? h("div", { className: "filename-row" },
+            Icon("description", { size: 16 }),
+            st.fileName,
+            st.uploaderName && st.uploaderName !== user.name ? h("span", { style: { color:"var(--muted)" } }, ` · uploaded by ${st.uploaderName}`) : null
+          ) : null,
+          st.status === "checking" ? h("div", { className: "verdict-box", style: { background: "var(--surface)" } },
+            h("span", { className: "spinner dark", style: { display: "inline-block", marginRight: 6, verticalAlign: "-2px" } }),
+            "AI is grading this section against the rubric…"
+          ) : null,
+          (verdict && st.status !== "checking") ? h(React.Fragment, null,
+            verdict.scorePercent !== undefined ? h(React.Fragment, null,
+              h("div", { className: "score-row" },
+                h("span", { className: "score-num " + st.status }, Math.round(verdict.scorePercent) + "%"),
+                h("span", { style: { fontSize: "var(--text-xs)", color: "var(--muted)" } }, "overall score")
+              ),
+              h("div", { className: "score-bar-track" },
+                h("div", { className: "score-bar-fill", style: { width: Math.max(0,Math.min(100,verdict.scorePercent)) + "%", background: barColor(st.status) } })
+              )
+            ) : null,
+            (verdict.criteria && verdict.criteria.length) ? h("div", { className: "rubric-list" },
+              verdict.criteria.map((c,i) => h("div", { className: "rubric-item", key:i },
+                h("span", null, c.name + (c.note ? " — " + c.note : "")),
+                h("span", { className: "rubric-score" }, c.score + "/" + c.max)
+              ))
+            ) : null,
+            h("div", { className: "verdict-box " + st.status },
+              h("strong", null, st.status === "approved" ? "Approved" : st.status === "needs_revision" ? "Needs Revision" : st.status === "error" ? "Upload Error" : "Rejected"),
+              verdict.remarks || verdict.comment
+            ),
+            h("div", { style: { fontSize: "10px", color: "var(--muted)", marginTop: 6, display: "flex", alignItems: "center", gap: 4 } },
+              Icon(st.teacher ? "person" : "fact_check", { size: 12 }),
+              st.teacher
+                ? `Graded by ${st.teacher.byName || "your teacher"} (teacher)${st.ai ? " — originally AI-graded" : ""}`
+                : `Graded by AI${st.provider && AI_PROVIDERS[st.provider] ? " — " + AI_PROVIDERS[st.provider].label : ""}`
+            ),
+            st.teacher ? h("div", { className: "teacher-revision" },
+              h("span", { className: "tag" }, "Revised by teacher"),
+              h("div", null, st.teacher.comment)
+            ) : null
+          ) : null
+        );
+      })
+    )
   );
 }
 
 /* ════════════════════════════════════════════════════
-   TEACHER DASHBOARD — full log, read-only (verdicts final)
+   TEACHER DASHBOARD
    ════════════════════════════════════════════════════ */
-function TeacherDashboard({ aiConfig, setAiConfig }) {
+function TeacherDashboard({ aiConfig, setAiConfig, user }) {
+  const [tab, setTab] = useState("log");
   const [subs, setSubs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState(null);
+  const [overrideStatus, setOverrideStatus] = useState("approved");
+  const [overrideComment, setOverrideComment] = useState("");
+  const [overrideSaving, setOverrideSaving] = useState(false);
   const [keyDraft, setKeyDraft] = useState(aiConfig.apiKey || "");
   const [providerDraft, setProviderDraft] = useState(aiConfig.provider || "gemini");
+  const [groqKeyDraft, setGroqKeyDraft] = useState(aiConfig.groqKey || "");
+  const [keySaved, setKeySaved] = useState(!!aiConfig.apiKey);
+  const [groqKeySaved, setGroqKeySaved] = useState(!!aiConfig.groqKey);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const [selected, setSelected] = useState(new Set());
+  const [deleting, setDeleting] = useState(false);
+
+  const bulkDelete = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`Permanently delete ${selected.size} submission(s)? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      // Firestore batches max 500 ops; chunk if needed
+      const ids = Array.from(selected);
+      const chunks = [];
+      for (let i = 0; i < ids.length; i += 500) chunks.push(ids.slice(i, i + 500));
+      for (const chunk of chunks) {
+        const batch = db.batch();
+        chunk.forEach(id => batch.delete(db.collection("submissions").doc(id)));
+        await batch.commit();
+      }
+      setSelected(new Set());
+    } catch (e) {
+      alert("Delete failed: " + e.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+  const [people, setPeople] = useState([]);
+  const [peopleLoading, setPeopleLoading] = useState(true);
+  const [peopleBusy, setPeopleBusy] = useState({});
 
   useEffect(() => {
-    db.collection("submissions").orderBy("submittedAt","desc").limit(200).get().then(snap => {
-      setSubs(snap.docs.map(d => ({ id:d.id, ...d.data() })));
-      setLoading(false);
+    const unsub = db.collection("users").onSnapshot(snap => {
+      setPeople(snap.docs.map(d => Object.assign({ uid: d.id }, d.data())));
+      setPeopleLoading(false);
     });
+    return unsub;
   }, []);
 
-  const saveAiConfig = async () => {
-    await db.collection("config").doc("ai").set({ provider: providerDraft, apiKey: keyDraft });
-    setAiConfig({ provider: providerDraft, apiKey: keyDraft });
+  const busy = (uid, v) => setPeopleBusy(prev => Object.assign({}, prev, { [uid]: v }));
+
+  const approveUser = async (uid) => {
+    busy(uid, true);
+    try { await db.collection("users").doc(uid).update({ approved: true }); }
+    catch (e) { alert("Couldn't approve: " + e.message); }
+    finally { busy(uid, false); }
   };
 
-  const accepted = subs.filter(s => s.verdict === "accepted").length;
-  const rejected = subs.filter(s => s.verdict === "rejected").length;
+  const revokeUser = async (uid) => {
+    if (!confirm("Revoke this account's access? They won't be able to use the app until re-approved.")) return;
+    busy(uid, true);
+    try { await db.collection("users").doc(uid).update({ approved: false }); }
+    catch (e) { alert("Couldn't revoke: " + e.message); }
+    finally { busy(uid, false); }
+  };
 
-  return (
-    <>
-      <div className="page-head">
-        <h2>Submission Log</h2>
-        <p>All AI verdicts are final and logged with full reasoning for accountability.</p>
-      </div>
+  const setRole = async (uid, role) => {
+    const teacherCount = people.filter(p => p.role === "teacher").length;
+    const target = people.find(p => p.uid === uid);
+    if (role === "student" && target && target.role === "teacher" && teacherCount <= 1) {
+      alert("Can't demote the only teacher account — promote someone else first.");
+      return;
+    }
+    if (!confirm(`Make ${target ? (target.name || target.email) : "this user"} a ${role}?`)) return;
+    busy(uid, true);
+    try { await db.collection("users").doc(uid).update({ role }); }
+    catch (e) { alert("Couldn't update role: " + e.message); }
+    finally { busy(uid, false); }
+  };
 
-      <div className="card">
-        <strong style={{fontSize:"var(--text-sm)"}}>AI Reviewer Settings</strong>
-        <div style={{display:"flex", gap:10, marginTop:12, flexWrap:"wrap", alignItems:"flex-end"}}>
-          <div className="field" style={{margin:0, minWidth:220}}>
-            <label>Provider</label>
-            <select value={providerDraft} onChange={e=>setProviderDraft(e.target.value)}>
-              {Object.entries(AI_PROVIDERS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
-            </select>
-          </div>
-          <div className="field" style={{margin:0, flex:1, minWidth:220}}>
-            <label>API Key</label>
-            <input value={keyDraft} onChange={e=>setKeyDraft(e.target.value)} placeholder="Paste API key"/>
-          </div>
-          <button className="btn btn-gold" onClick={saveAiConfig} style={{height:42}}>Save</button>
-        </div>
-        <p style={{fontSize:"11px",color:"var(--muted)",marginTop:8,marginBottom:0}}>
-          Note: this key is stored in Firestore and used client-side, so anyone with access to this app's source can see it.
-          Fine for a free-tier key with no billing. Do not put a billed key here without locking this down server-side first.
-        </p>
-      </div>
+  const pendingPeople = people.filter(p => p.approved === false);
+  const approvedPeople = people.filter(p => p.approved !== false).sort((a,b) => (a.name||"").localeCompare(b.name||""));
 
-      <div className="card" style={{display:"flex", gap:24}}>
-        <div><div style={{fontSize:"var(--text-2xl)",fontWeight:700}}>{subs.length}</div><div style={{fontSize:"var(--text-xs)",color:"var(--muted)"}}>Total Submissions</div></div>
-        <div><div style={{fontSize:"var(--text-2xl)",fontWeight:700,color:"var(--green)"}}>{accepted}</div><div style={{fontSize:"var(--text-xs)",color:"var(--muted)"}}>Accepted</div></div>
-        <div><div style={{fontSize:"var(--text-2xl)",fontWeight:700,color:"var(--red)"}}>{rejected}</div><div style={{fontSize:"var(--text-xs)",color:"var(--muted)"}}>Rejected</div></div>
-      </div>
+  useEffect(() => {
+    const unsub = db.collection("submissions").orderBy("submittedAt","desc").limit(200)
+      .onSnapshot(snap => { setSubs(snap.docs.map(d => Object.assign({ id: d.id }, d.data()))); setLoading(false); });
+    return unsub;
+  }, []);
 
-      <div className="card" style={{padding:0}}>
-        {loading ? <div className="empty">Loading…</div> : subs.length === 0 ? (
-          <div className="empty">No submissions yet.</div>
-        ) : (
-          <table>
-            <thead><tr><th>Student</th><th>Section</th><th>File</th><th>Verdict</th><th>Submitted</th><th></th></tr></thead>
-            <tbody>
-              {subs.map(s => (
-                <tr key={s.id}>
-                  <td>{s.studentName}</td>
-                  <td>{s.sectionLabel}</td>
-                  <td>{s.fileName}</td>
-                  <td><span className={`badge ${s.verdict==="accepted"?"green":"red"}`}>{s.verdict}</span></td>
-                  <td style={{color:"var(--muted)",fontSize:"var(--text-xs)"}}>{new Date(s.submittedAt).toLocaleString("en-PH")}</td>
-                  <td><button className="btn btn-ghost" style={{padding:"4px 8px"}} onClick={()=>setActive(s)}>View</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+  // Teams are derived read-only from submissions (category/coAuthors/teamEmails
+  // set by the students themselves) — no separate "groups" collection or
+  // cross-document writes here, which is what made the old version flaky.
+  const teams = (() => {
+    const map = {};
+    subs.forEach(s => {
+      const emails = (s.teamEmails && s.teamEmails.length) ? s.teamEmails.slice().sort() : [(s.uploaderEmail || s.uploaderName || "unknown").toLowerCase()];
+      const key = emails.join("|");
+      if (!map[key]) map[key] = { key, category: null, members: [], sections: {} };
+      if (!map[key].category && s.category) map[key].category = s.category;
+      [s.uploaderName].concat((s.coAuthors || []).map(c => c.name)).filter(Boolean).forEach(n => {
+        if (!map[key].members.includes(n)) map[key].members.push(n);
+      });
+      const fs = s.teacherVerdict ? s.teacherVerdict.status : (s.aiVerdict ? s.aiVerdict.status : "pending");
+      map[key].sections[s.sectionId] = fs;
+    });
+    return Object.values(map);
+  })();
 
-      {active && (
-        <div className="modal-overlay" onClick={()=>setActive(null)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
-            <h3>{active.sectionLabel} — {active.studentName}</h3>
-            <span className={`badge ${active.verdict==="accepted"?"green":"red"}`}>{active.verdict}</span>
-            <p style={{fontSize:"var(--text-sm)",lineHeight:1.6,marginTop:14}}>{active.reasoning}</p>
-            <p style={{fontSize:"11px",color:"var(--muted)"}}>Provider: {active.provider} · {new Date(active.submittedAt).toLocaleString("en-PH")}</p>
-            <button className="btn btn-outline btn-full" onClick={()=>setActive(null)}>Close</button>
-          </div>
-        </div>
-      )}
-    </>
+  const saveAiConfig = async () => {
+    setSaving(true); setSaveError(""); setSaved(false);
+    try {
+      await db.collection("config").doc("ai").set({ provider: providerDraft, apiKey: keyDraft, groqKey: groqKeyDraft });
+      setAiConfig({ provider: providerDraft, apiKey: keyDraft, groqKey: groqKeyDraft });
+      setSaved(true);
+      if (keyDraft) setKeySaved(true);
+      if (groqKeyDraft) setGroqKeySaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e) {
+      const code = e && e.code;
+      const friendly = code === "permission-denied"
+        ? "Save blocked by Firestore security rules (permission-denied). Your account isn't allowed to write to config/ai — check the rules for that path."
+        : (e.message || "Save failed — check your connection and try again.");
+      setSaveError((code ? `[${code}] ` : "") + friendly);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openOverride = (s) => {
+    setActive(s);
+    setOverrideStatus((s.teacherVerdict && s.teacherVerdict.status) || (s.aiVerdict && s.aiVerdict.status) || "approved");
+    setOverrideComment((s.teacherVerdict && s.teacherVerdict.comment) || "");
+  };
+
+  const saveOverride = async () => {
+    if (!active) return;
+    setOverrideSaving(true);
+    try {
+      const teacherVerdict = { status: overrideStatus, comment: overrideComment, byUid: user.uid, byName: user.name, at: new Date().toISOString() };
+      await db.collection("submissions").doc(active.id).update({ teacherVerdict });
+      setActive(Object.assign({}, active, { teacherVerdict }));
+    } catch (e) {
+      alert("Could not save: " + e.message);
+    } finally {
+      setOverrideSaving(false);
+    }
+  };
+
+
+
+  const finalStatusOf = (s) => (s.teacherVerdict && s.teacherVerdict.status) || (s.aiVerdict && s.aiVerdict.status) || "pending";
+  const approved = subs.filter(s => finalStatusOf(s) === "approved").length;
+  const needsRevision = subs.filter(s => finalStatusOf(s) === "needs_revision").length;
+  const rejected = subs.filter(s => finalStatusOf(s) === "rejected").length;
+
+  return h(React.Fragment, null,
+    h("div", { className: "page-head" },
+      h("h2", null, "Teacher Dashboard"),
+      h("p", null, "The AI grades first; you can review and revise its decision below — students see whichever is final.")
+    ),
+    h("div", { className: "auth-tabs", style: { maxWidth: 460, marginBottom: 18 } },
+      h("button", { className: "auth-tab" + (tab==="log"?" active":""), onClick: () => setTab("log") }, "Submission Log"),
+      h("button", { className: "auth-tab" + (tab==="groups"?" active":""), onClick: () => setTab("groups") }, "Teams"),
+      h("button", { className: "auth-tab" + (tab==="people"?" active":""), onClick: () => setTab("people") },
+        "People" + (pendingPeople.length ? ` (${pendingPeople.length})` : "")
+      ),
+      h("button", { className: "auth-tab" + (tab==="settings"?" active":""), onClick: () => setTab("settings") }, "Settings")
+    ),
+
+    tab === "settings" ? h("div", { className: "card" },
+      h("strong", { style: { fontSize: "var(--text-sm)" } }, "AI Reviewer Settings"),
+      h("div", { style: { display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap", alignItems: "flex-end" } },
+        h("div", { className: "field", style: { margin: 0, minWidth: 220 } },
+          h("label", null, "Provider"),
+          h("select", { value: providerDraft, onChange: e => { setProviderDraft(e.target.value); setKeySaved(false); setGroqKeySaved(false); } },
+            Object.entries(AI_PROVIDERS).map(([k,v]) => h("option", { key: k, value: k }, v.label))
+          )
+        ),
+        h("div", { className: "field", style: { margin: 0, flex: 1, minWidth: 220 } },
+          h("label", null, "API Key"),
+          keySaved
+            ? h("div", { style: { display:"flex", alignItems:"center", gap:8 } },
+                h("div", { style: { flex:1, padding:"11px 13px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:9, fontSize:"var(--text-sm)", color:"var(--muted)", letterSpacing:"0.12em", fontFamily:"var(--font-mono)" } },
+                  "••••••••••••••••••••"
+                ),
+                h("button", { className:"btn btn-outline", style:{ whiteSpace:"nowrap" }, onClick: () => { setKeySaved(false); setKeyDraft(""); } }, "Change")
+              )
+            : h("input", { value: keyDraft, onChange: e => setKeyDraft(e.target.value), placeholder: "Paste API key", autoComplete:"off" })
+        ),
+        h("button", { className: "btn btn-gold", onClick: saveAiConfig, disabled: saving, style: { height: 42 } },
+          saving ? h("span", { className: "spinner" }) : (saved ? "Saved ✓" : "Save")
+        )
+      ),
+      (providerDraft === "qwen_free" || providerDraft === "qwen_paid") ? h("div", { style: { marginTop: 12 } },
+        h("div", { className: "field", style: { margin: 0 } },
+          h("label", null, "Groq API Key (free fallback — get one at console.groq.com)"),
+          groqKeySaved
+            ? h("div", { style: { display:"flex", alignItems:"center", gap:8 } },
+                h("div", { style: { flex:1, padding:"11px 13px", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:9, fontSize:"var(--text-sm)", color:"var(--muted)", letterSpacing:"0.12em", fontFamily:"var(--font-mono)" } },
+                  "••••••••••••••••••••"
+                ),
+                h("button", { className:"btn btn-outline", style:{ whiteSpace:"nowrap" }, onClick: () => { setGroqKeySaved(false); setGroqKeyDraft(""); } }, "Change")
+              )
+            : h("input", { value: groqKeyDraft, onChange: e => setGroqKeyDraft(e.target.value), placeholder: "gsk_...", autoComplete:"off" })
+        )
+      ) : null,
+      saveError ? h("p", { style: { fontSize: "13px", fontWeight: 600, color: "var(--red)", marginTop: 10, marginBottom: 0, padding: "10px 12px", background: "var(--red-light)", borderRadius: 8 } }, saveError) : null,
+      (providerDraft === "qwen_free") ? h("p", { style: { fontSize: "11px", color: "var(--muted)", marginTop: 8, marginBottom: 0 } },
+        "OpenRouter free models require \"Enable free endpoints\" turned on in your OpenRouter account's Privacy settings (openrouter.ai/settings/privacy), or every request 404s. Free-tier model availability on OpenRouter also changes often — Gemini or Groq tend to be more stable for a school deployment."
+      ) : null,
+      h("p", { style: { fontSize: "11px", color: "var(--muted)", marginTop: 8, marginBottom: 0 } },
+        "This key is stored in Firestore and used client-side, so anyone with access to this app's source/network tab can see it. Fine for a free-tier key with no billing risk. For a production rollout, proxy this call through a server function instead so the key never reaches the browser — ask me and I'll write that piece separately."
+      )
+    ) : null,
+
+    tab === "people" ? h(React.Fragment, null,
+      pendingPeople.length > 0 ? h("div", { className: "card", style: { marginBottom: 16 } },
+        h("strong", { style: { fontSize: "var(--text-sm)" } }, `Pending Approval (${pendingPeople.length})`),
+        h("div", { style: { marginTop: 10, display: "flex", flexDirection: "column", gap: 8 } },
+          pendingPeople.map(p => h("div", { key: p.uid, style: {
+              display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+              background: "var(--surface)", borderRadius: 9
+            } },
+            Icon("person", { size: 16 }),
+            h("div", { style: { flex: 1, minWidth: 0 } },
+              h("div", { style: { fontWeight: 600, fontSize: "var(--text-sm)" } }, p.name || "(no name)"),
+              h("div", { style: { fontSize: "var(--text-xs)", color: "var(--muted)" } }, p.email)
+            ),
+            h("button", { className: "btn btn-gold", style: { padding: "8px 14px" },
+              disabled: !!peopleBusy[p.uid], onClick: () => approveUser(p.uid) },
+              peopleBusy[p.uid] ? h("span", { className: "spinner" }) : "Approve"
+            )
+          ))
+        )
+      ) : h("div", { className: "notice", style: { marginBottom: 16 } }, "No accounts waiting for approval."),
+
+      h("div", { className: "card", style: { padding: 0, overflowX: "auto" } },
+        h("div", { style: { padding: "14px 16px 0" } }, h("strong", { style: { fontSize: "var(--text-sm)" } }, "All Accounts")),
+        peopleLoading ? h("div", { className: "empty" }, "Loading…") :
+        h("table", null,
+          h("thead", null, h("tr", null,
+            h("th", null, "Name"), h("th", null, "Email"), h("th", null, "Role"),
+            h("th", null, "Status"), h("th", null)
+          )),
+          h("tbody", null, approvedPeople.map(p => h("tr", { key: p.uid },
+            h("td", null, p.name || "—"),
+            h("td", null, p.email),
+            h("td", null, h("span", { style: {
+                display: "inline-flex", fontSize: "10px", fontWeight: 700, textTransform: "uppercase",
+                letterSpacing: "0.03em", color: p.role === "teacher" ? "var(--purple)" : "var(--blue)",
+                background: p.role === "teacher" ? "var(--purple-light)" : "var(--blue-light)",
+                padding: "3px 8px", borderRadius: 99
+              } }, p.role || "student")),
+            h("td", null, p.approved === false ? "Revoked" : "Active"),
+            h("td", { style: { display: "flex", gap: 6, justifyContent: "flex-end", padding: "8px 12px" } },
+              p.uid === user.uid ? h("span", { style: { fontSize: "var(--text-xs)", color: "var(--muted)" } }, "(you)") : h(React.Fragment, null,
+                p.role === "teacher"
+                  ? h("button", { className: "btn btn-outline", style: { padding: "6px 10px", fontSize: "var(--text-xs)" },
+                      disabled: !!peopleBusy[p.uid], onClick: () => setRole(p.uid, "student") }, "Make Student")
+                  : h("button", { className: "btn btn-outline", style: { padding: "6px 10px", fontSize: "var(--text-xs)" },
+                      disabled: !!peopleBusy[p.uid], onClick: () => setRole(p.uid, "teacher") }, "Make Teacher"),
+                p.approved === false
+                  ? h("button", { className: "btn btn-gold", style: { padding: "6px 10px", fontSize: "var(--text-xs)" },
+                      disabled: !!peopleBusy[p.uid], onClick: () => approveUser(p.uid) }, "Re-approve")
+                  : h("button", { className: "btn", style: { padding: "6px 10px", fontSize: "var(--text-xs)", background: "var(--red)", color: "#fff" },
+                      disabled: !!peopleBusy[p.uid], onClick: () => revokeUser(p.uid) }, "Revoke")
+              )
+            )
+          )))
+        )
+      )
+    ) : null,
+
+    tab === "log" ? h(React.Fragment, null,
+      h("div", { className: "card", style: { display: "flex", gap: 24, flexWrap: "wrap" } },
+        h("div", null, h("div", { style: { fontSize: "var(--text-2xl)", fontWeight: 700 } }, subs.length), h("div", { style: { fontSize: "var(--text-xs)", color: "var(--muted)" } }, "Total Submissions")),
+        h("div", null, h("div", { style: { fontSize: "var(--text-2xl)", fontWeight: 700, color: "var(--teal-vibrant)" } }, approved), h("div", { style: { fontSize: "var(--text-xs)", color: "var(--muted)" } }, "Approved")),
+        h("div", null, h("div", { style: { fontSize: "var(--text-2xl)", fontWeight: 700, color: "var(--gold)" } }, needsRevision), h("div", { style: { fontSize: "var(--text-xs)", color: "var(--muted)" } }, "Needs Revision")),
+        h("div", null, h("div", { style: { fontSize: "var(--text-2xl)", fontWeight: 700, color: "var(--red)" } }, rejected), h("div", { style: { fontSize: "var(--text-xs)", color: "var(--muted)" } }, "Rejected"))
+      ),
+      selected.size > 0 ? h("div", { style: { display:"flex", alignItems:"center", gap:12, marginBottom:10, padding:"10px 14px", background:"var(--red-light)", borderRadius:"var(--radius)", border:"1px solid rgba(192,57,43,0.25)" } },
+        h("span", { style: { fontSize:"var(--text-sm)", fontWeight:600, color:"var(--red)", flex:1 } }, selected.size + " submission" + (selected.size > 1 ? "s" : "") + " selected"),
+        h("button", { className: "btn", style: { background:"var(--red)", color:"#fff", padding:"8px 16px" }, onClick: bulkDelete, disabled: deleting },
+          deleting ? h("span", { className:"spinner" }) : "Delete Selected"
+        ),
+        h("button", { className:"btn btn-ghost", style:{ padding:"8px 12px" }, onClick: () => setSelected(new Set()) }, "Cancel")
+      ) : null,
+      h("div", { className: "card", style: { padding: 0, overflowX: "auto" } },
+        loading ? h("div", { className: "empty" }, "Loading…") :
+        subs.length === 0 ? h("div", { className: "empty" }, "No submissions yet.") :
+        h("table", null,
+          h("thead", null, h("tr", null,
+            h("th", { style:{ width:36 } },
+              h("input", { type:"checkbox", checked: selected.size === subs.length && subs.length > 0,
+                onChange: e => setSelected(e.target.checked ? new Set(subs.map(s=>s.id)) : new Set()),
+                style:{ cursor:"pointer" }
+              })
+            ),
+            h("th", null, "Uploader"), h("th", null, "Section"), h("th", null, "Category"), h("th", null, "AI Score"),
+            h("th", null, "Final Status"), h("th", null, "Submitted"), h("th", null)
+          )),
+          h("tbody", null, subs.map(s => {
+            const fs = finalStatusOf(s);
+            const badgeClass = fs === "approved" ? "green" : fs === "needs_revision" ? "gold" : "red";
+            return h("tr", { key: s.id, style: selected.has(s.id) ? { background:"var(--red-light)" } : {} },
+              h("td", null,
+                h("input", { type:"checkbox", checked: selected.has(s.id), style:{ cursor:"pointer" },
+                  onChange: e => {
+                    const next = new Set(selected);
+                    e.target.checked ? next.add(s.id) : next.delete(s.id);
+                    setSelected(next);
+                  }
+                })
+              ),
+              h("td", null,
+                s.uploaderName,
+                (s.coAuthors && s.coAuthors.length) ? h("div", { style: { fontSize: "10px", color: "var(--muted)" } }, "+ " + s.coAuthors.map(c=>c.name).join(", ")) : null
+              ),
+              h("td", null, s.sectionLabel),
+              h("td", null, s.category ? h("span", { className: "badge purple" }, s.category) : "—"),
+              h("td", null, s.aiVerdict ? Math.round(s.aiVerdict.scorePercent) + "%" : "—"),
+              h("td", null,
+                h("span", { className: "badge " + badgeClass }, fs.replace("_"," ")),
+                s.teacherVerdict
+                  ? h("span", { className: "badge purple", style: { marginLeft: 6 } }, "by " + (s.teacherVerdict.byName || "teacher"))
+                  : null,
+                h("div", { style: { fontSize: "10px", color: "var(--muted)", marginTop: 3 } },
+                  s.teacherVerdict ? "AI-graded, teacher-revised" : "AI-graded"
+                )
+              ),
+              h("td", { style: { color: "var(--muted)", fontSize: "var(--text-xs)" } }, new Date(s.submittedAt).toLocaleString("en-PH")),
+              h("td", null, h("button", { className: "btn btn-ghost", style: { padding: "4px 8px" }, onClick: () => openOverride(s) }, "Review"))
+            );
+          }))
+        )
+      )
+    ) : null,
+
+    tab === "groups" ? h(React.Fragment, null,
+      h("div", { className: "card", style: { marginBottom: 12 } },
+        h("strong", { style: { fontSize: "var(--text-sm)" } }, "Teams"),
+        h("p", { style: { fontSize: "var(--text-xs)", color: "var(--muted)", margin: "4px 0 0" } },
+          "Built automatically from each student's own Project Setup (category + co-authors) — nothing to manage here."
+        )
+      ),
+      teams.length === 0 ? h("div", { className: "empty" }, "No submissions yet — teams will appear here once students start uploading.") :
+      teams.map(t => h("div", { className: "group-card", key: t.key },
+        h("div", { className: "group-card-head" },
+          h("strong", null, t.members.join(", ") || "Unnamed"),
+          t.category ? h("span", { className: "badge purple" }, t.category) : null
+        ),
+        h("div", { className: "chip-row" },
+          SECTIONS.map(s => h("span", { className: "chip", key: s.id },
+            s.label + ": " + (t.sections[s.id] ? t.sections[s.id].replace("_"," ") : "pending")
+          ))
+        )
+      ))
+    ) : null,
+
+    active ? h("div", { className: "modal-overlay", onClick: () => setActive(null) },
+      h("div", { className: "modal", onClick: e => e.stopPropagation() },
+        h("h3", null, active.sectionLabel + " — " + active.uploaderName),
+        (active.coAuthors && active.coAuthors.length) ? h("p", { style: { fontSize: "11px", color: "var(--muted)", marginTop: -8, marginBottom: 10 } },
+          "Team — also credited: " + active.coAuthors.map(c => c.name).join(", ")
+        ) : null,
+        active.aiVerdict ? h(React.Fragment, null,
+          h("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 6 } },
+            h("span", { className: "badge " + (active.aiVerdict.status==="approved"?"green":active.aiVerdict.status==="needs_revision"?"gold":"red") }, "AI: " + active.aiVerdict.status.replace("_"," ")),
+            h("span", { style: { fontSize: "var(--text-xs)", color: "var(--muted)" } }, Math.round(active.aiVerdict.scorePercent) + "%")
+          ),
+          (active.aiVerdict.criteria||[]).length ? h("div", { className: "rubric-list" },
+            active.aiVerdict.criteria.map((c,i) => h("div", { className: "rubric-item", key:i },
+              h("span", null, c.name + (c.note ? " — " + c.note : "")),
+              h("span", { className: "rubric-score" }, c.score + "/" + c.max)
+            ))
+          ) : null,
+          h("p", { style: { fontSize: "var(--text-sm)", lineHeight: 1.6 } }, active.aiVerdict.remarks)
+        ) : h("p", { style: { fontSize: "var(--text-sm)", color: "var(--muted)" } }, "No AI verdict on file for this submission."),
+        h("p", { style: { fontSize: "11px", color: "var(--muted)" } },
+          "Graded by AI — " + (AI_PROVIDERS[active.provider] ? AI_PROVIDERS[active.provider].label : (active.provider || "unknown")) + " · " + new Date(active.submittedAt).toLocaleString("en-PH")
+        ),
+        active.teacherVerdict ? h("p", { style: { fontSize: "11px", color: "var(--purple)", fontWeight: 600 } },
+          `Revised by ${active.teacherVerdict.byName || "a teacher"}` + (active.teacherVerdict.at ? " · " + new Date(active.teacherVerdict.at).toLocaleString("en-PH") : "")
+        ) : null,
+
+        h("div", { style: { borderTop: "1px solid var(--border)", marginTop: 14, paddingTop: 14 } },
+          h("strong", { style: { fontSize: "var(--text-sm)" } }, "Teacher Decision"),
+          h("div", { className: "field", style: { marginTop: 10 } },
+            h("label", null, "Final Status"),
+            h("select", { value: overrideStatus, onChange: e => setOverrideStatus(e.target.value) },
+              h("option", { value: "approved" }, "Approved"),
+              h("option", { value: "needs_revision" }, "Needs Revision"),
+              h("option", { value: "rejected" }, "Rejected")
+            )
+          ),
+          h("div", { className: "field" },
+            h("label", null, "Comment to student"),
+            h("textarea", {
+              value: overrideComment, onChange: e => setOverrideComment(e.target.value),
+              rows: 3, placeholder: "Explain your decision — this is shown directly to the student.",
+              style: { width: "100%", padding: "11px 13px", border: "1px solid var(--border)", borderRadius: 9, fontSize: "var(--text-sm)", background: "var(--surface)", color: "var(--ink)", fontFamily: "var(--font-body)", resize: "vertical" }
+            })
+          ),
+          h("button", { className: "btn btn-gold btn-full", onClick: saveOverride, disabled: overrideSaving },
+            overrideSaving ? h("span", { className: "spinner" }) : (active.teacherVerdict ? "Update Grade" : "Confirm Grade")
+          )
+        ),
+        h("button", { className: "btn btn-outline btn-full", onClick: () => setActive(null), style: { marginTop: 10 } }, "Close")
+      )
+    ) : null
   );
 }
 
@@ -594,59 +1439,120 @@ function TeacherDashboard({ aiConfig, setAiConfig }) {
 function App() {
   const [user, setUser] = useState(undefined);
   const [aiConfig, setAiConfig] = useState({ provider:"gemini", apiKey:"" });
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem("etuklas-theme");
+    if (saved) return saved === "dark";
+    return true;
+  });
 
   useEffect(() => {
-    const unsub = auth.onAuthStateChanged(async (fbUser) => {
+    document.documentElement.setAttribute("data-theme", darkMode ? "dark" : "light");
+    localStorage.setItem("etuklas-theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
+
+  useEffect(() => {
+    let userUnsub = () => {};
+    const authUnsub = auth.onAuthStateChanged(async (fbUser) => {
+      userUnsub();
       if (!fbUser) { setUser(null); return; }
-      const snap = await db.collection("users").doc(fbUser.uid).get();
-      setUser({ uid: fbUser.uid, ...snap.data() });
+      // Live listener on user doc so category/team setup changes show without re-login
+      userUnsub = db.collection("users").doc(fbUser.uid).onSnapshot(snap => {
+        setUser(Object.assign({ uid: fbUser.uid }, snap.data()));
+      });
     });
+    return () => { authUnsub(); userUnsub(); };
+  }, []);
+
+  useEffect(() => {
+    const unsub = db.collection("config").doc("ai").onSnapshot(
+      snap => { if (snap.exists) setAiConfig(snap.data()); },
+      err => console.error("AI config listener error:", err.code, err.message)
+    );
     return unsub;
   }, []);
 
-  useEffect(() => {
-    db.collection("config").doc("ai").get().then(snap => {
-      if (snap.exists) setAiConfig(snap.data());
-    });
-  }, []);
+  const closeSidebar = () => setDrawerOpen(false);
 
-  if (user === undefined) return <div className="auth-shell"><span className="spinner dark"></span></div>;
-  if (!user) return <AuthPage onLogin={setUser} />;
+  if (user === undefined) return h("div", { className: "auth-shell" }, h("span", { className: "spinner dark" }));
+  if (!user) return h(AuthPage, { onLogin: setUser });
+  // approved defaults to true for accounts that predate this field (legacy data);
+  // only an explicit `approved: false` blocks access.
+  if (user.approved === false) return h(PendingApproval, { user, onSignOut: () => auth.signOut() });
 
-  return (
-    <div className="app-shell">
-      <div className="sidebar">
-        <div className="sidebar-logo">
-          <h1>E-Tuklas <span>Checker</span></h1>
-          <p>Online Research Review</p>
-        </div>
-        <div className="nav-item active">
-          <span className="material-symbols-outlined">{user.role==="teacher"?"fact_check":"upload_file"}</span>
-          {user.role === "teacher" ? "Submission Log" : "My Submissions"}
-        </div>
-        <div className="sidebar-foot">
-          <div className="user-chip">
-            <div className="user-avatar">{(user.name||"?")[0]}</div>
-            <div>
-              <strong>{user.name}</strong>
-              <span>{user.role}</span>
-            </div>
-          </div>
-          <button className="btn btn-ghost btn-full" onClick={()=>auth.signOut()} style={{marginTop:8, justifyContent:"flex-start"}}>
-            <span className="material-symbols-outlined" style={{fontSize:18}}>logout</span> Sign Out
-          </button>
-        </div>
-      </div>
-      <div className="main">
-        {user.role === "teacher"
-          ? <TeacherDashboard aiConfig={aiConfig} setAiConfig={setAiConfig} />
-          : <StudentDashboard user={user} aiConfig={aiConfig} />}
-      </div>
-    </div>
+  const sidebarContent = h(React.Fragment, null,
+    h("div", { className: "sidebar-logo" },
+      h("div", { className: "sidebar-logo-icon" }, Icon("terminal", { size: 22 })),
+      h("div", null,
+        h("h1", null, "E-Tuklas"),
+        h("p", null, "Online Checker")
+      )
+    ),
+    h("div", { className: "nav-item active", onClick: closeSidebar },
+      Icon(user.role === "teacher" ? "fact_check" : "upload_file"),
+      user.role === "teacher" ? "Dashboard" : "My Submissions"
+    ),
+    h("div", { className: "sidebar-foot" },
+      h("div", { className: "theme-toggle-row" },
+        h("div", { className: "label-group" },
+          Icon(darkMode ? "dark_mode" : "light_mode", { size: 18 }),
+          darkMode ? "Dark mode" : "Light mode"
+        ),
+        h("button", {
+          className: "theme-switch" + (darkMode ? " on" : ""),
+          onClick: () => setDarkMode(d => !d),
+          "aria-label": "Toggle dark mode",
+          "aria-pressed": darkMode
+        },
+          h("span", { className: "knob" },
+            Icon(darkMode ? "dark_mode" : "light_mode", { size: 13 })
+          )
+        )
+      ),
+      h("div", { className: "user-chip" },
+        h("div", { className: "user-avatar" }, (user.name || "?")[0].toUpperCase()),
+        h("div", null, h("strong", null, user.name), h("span", null, user.role))
+      ),
+      h("button", {
+        className: "btn btn-ghost btn-full",
+        onClick: () => auth.signOut(),
+        style: { marginTop: 8, justifyContent: "flex-start" }
+      }, Icon("logout", { size: 18 }), " Sign Out")
+    )
+  );
+
+  return h("div", { className: "app-shell" },
+    // ── Mobile top bar ──
+    h("div", { className: "mobile-topbar" },
+      h("div", { className: "left" },
+        h("button", {
+          className: "mobile-menu-btn",
+          onClick: () => setDrawerOpen(true),
+          "aria-label": "Open menu"
+        }, h("svg", { width:22, height:22, viewBox:"0 0 24 24", fill:"none", stroke:"currentColor", strokeWidth:2, strokeLinecap:"round" },
+          h("path", { d:"M3 12h18M3 6h18M3 18h18" })
+        )),
+        h("h1", null, "E-Tuklas")
+      ),
+      h("div", { className: "user-avatar", style: { width:34, height:34, borderRadius:"50%", background:"linear-gradient(135deg,var(--gold),var(--teal-vibrant))", display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:700, fontSize:"var(--text-sm)" } },
+        (user.name || "?")[0].toUpperCase()
+      )
+    ),
+    // ── Drawer backdrop ──
+    h("div", { className: "drawer-backdrop" + (drawerOpen ? " open" : ""), onClick: closeSidebar }),
+    // ── Sidebar (desktop: static; mobile: drawer) ──
+    h("div", { className: "sidebar" + (drawerOpen ? " open" : "") }, sidebarContent),
+    // ── Main content ──
+    h("div", { className: "main" },
+      user.role === "teacher"
+        ? h(TeacherDashboard, { aiConfig, setAiConfig, user })
+        : h(StudentDashboard, { user, aiConfig })
+    )
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+
 </script>
 </body>
 </html>
