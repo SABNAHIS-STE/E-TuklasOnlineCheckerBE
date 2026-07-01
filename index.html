@@ -249,14 +249,37 @@ const STATUS_META = {
 
 async function authedFetch(path, opts = {}) {
   const { data: { session } } = await sb.auth.getSession();
-  const res = await fetch(CONFIG.BACKEND_URL + path, {
-    ...opts,
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + (session?.access_token || ""),
-      ...(opts.headers || {})
+  let res;
+  try {
+    res = await fetch(CONFIG.BACKEND_URL + path, {
+      ...opts,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + (session?.access_token || ""),
+        ...(opts.headers || {})
+      }
+    });
+  } catch (e) {
+    // fetch() throws a generic "Failed to fetch" for both real network
+    // errors and CORS rejections — the browser hides the real reason from
+    // JS. The most common cause here is that this page is being opened as
+    // a local file (origin "null") or from a domain the backend's CORS
+    // allow-list doesn't include, so the browser blocks the response
+    // before it ever reaches this code.
+    if (window.location.protocol === "file:") {
+      throw new Error(
+        "Can't reach the server because this page is open as a local file (file://). " +
+        "The backend only allows requests from the deployed site " +
+        "(https://sabnahis-ste.github.io/E-TuklasOnlineChecker/). " +
+        "Open the app from that URL instead of double-clicking the HTML file."
+      );
     }
-  });
+    throw new Error(
+      "Can't reach the server at " + CONFIG.BACKEND_URL + ". This is usually a CORS " +
+      "or network issue — check that the backend is running and that its " +
+      "Access-Control-Allow-Origin allow-list includes " + window.location.origin + "."
+    );
+  }
   if (!res.ok) {
     let msg = "Request failed";
     try { msg = (await res.json()).error || msg; } catch (e) {}
@@ -810,17 +833,30 @@ function AdminTab({ profile }) {
   }, []);
 
   async function setApproval(userId, approved) {
-    await authedFetch("/api/admin/set-approval", { method: "POST", body: JSON.stringify({ userId, approved }) });
-    load();
+    try {
+      await authedFetch("/api/admin/set-approval", { method: "POST", body: JSON.stringify({ userId, approved }) });
+      load();
+    } catch (e) {
+      alert(e.message);
+    }
   }
   async function setRole(userId, role) {
-    await authedFetch("/api/admin/set-role", { method: "POST", body: JSON.stringify({ userId, role }) });
-    load();
+    try {
+      await authedFetch("/api/admin/set-role", { method: "POST", body: JSON.stringify({ userId, role }) });
+      load();
+    } catch (e) {
+      alert(e.message);
+    }
   }
   async function saveConfig() {
     setSaving(true);
-    await authedFetch("/api/admin/config", { method: "POST", body: JSON.stringify(config) });
-    setSaving(false);
+    try {
+      await authedFetch("/api/admin/config", { method: "POST", body: JSON.stringify(config) });
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return h(React.Fragment, null,
@@ -862,7 +898,35 @@ function TeacherDashboard({ profile }) {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    const { data } = await sb.from("submissions").select("*, profiles(full_name, email)").order("submitted_at", { ascending: false });
+    let { data, error } = await sb.from("submissions")
+      .select("*, profiles(full_name, email)")
+      .order("submitted_at", { ascending: false });
+
+    if (error) {
+      // PostgREST returns 400 here if it can't resolve a foreign-key
+      // relationship between submissions and profiles (e.g. the FK isn't
+      // declared, or there's more than one possible FK path). Fall back
+      // to fetching both tables separately and joining client-side so the
+      // dashboard still works regardless of the schema-cache issue.
+      console.warn("Embedded profiles(...) select failed, falling back to manual join:", error.message);
+      const { data: subsOnly, error: subsErr } = await sb.from("submissions")
+        .select("*")
+        .order("submitted_at", { ascending: false });
+      if (subsErr) {
+        console.error(subsErr);
+        setSubs([]);
+        setLoading(false);
+        return;
+      }
+      const uploaderIds = [...new Set((subsOnly || []).map(s => s.uploader_id).filter(Boolean))];
+      let profilesById = {};
+      if (uploaderIds.length) {
+        const { data: profs } = await sb.from("profiles").select("id, full_name, email").in("id", uploaderIds);
+        profilesById = Object.fromEntries((profs || []).map(p => [p.id, p]));
+      }
+      data = (subsOnly || []).map(s => ({ ...s, profiles: profilesById[s.uploader_id] || null }));
+    }
+
     setSubs(data || []);
     setLoading(false);
   }, []);
