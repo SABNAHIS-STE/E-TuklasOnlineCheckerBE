@@ -86,10 +86,7 @@ async function callGemini(prompt, apiKey) {
     }
   );
   if (!res.ok) {
-    let bodyText = "";
-    try { bodyText = await res.text(); } catch (e) {}
-    console.error(`[gemini] request failed (${res.status}):`, bodyText);
-    const err = new Error(`Gemini request failed (${res.status}): ${bodyText}`);
+    const err = new Error(`Gemini request failed (${res.status})`);
     err.status = res.status;
     throw err;
   }
@@ -121,25 +118,63 @@ async function callGroq(prompt, apiKey) {
   return parseVerdict(text);
 }
 
+async function callOpenAI(prompt, apiKey) {
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+  if (!res.ok) {
+    let bodyText = "";
+    try { bodyText = await res.text(); } catch (e) {}
+    console.error(`[openai] request failed (${res.status}):`, bodyText);
+    const err = new Error(`OpenAI request failed (${res.status}): ${bodyText}`);
+    err.status = res.status;
+    throw err;
+  }
+  const data = await res.json();
+  const text = data?.choices?.[0]?.message?.content || "";
+  return parseVerdict(text);
+}
+
 const isQuotaError = (err) => err.status === 429 || err.status === 403;
 
+const PROVIDERS = {
+  gemini: { call: callGemini, keyEnv: "GEMINI_API_KEY" },
+  groq: { call: callGroq, keyEnv: "GROQ_API_KEY" },
+  openai: { call: callOpenAI, keyEnv: "OPENAI_API_KEY" }
+};
+
 /**
- * Grades a section. Tries Gemini first; only falls back to Groq on a
- * quota/rate-limit error (429/403), not on arbitrary failures — an
- * arbitrary-failure fallback would silently swap models mid-stream and
- * reintroduce "same abstract, different score" inconsistency. On any other
- * error it retries the same provider with backoff instead.
+ * Grades a section using the configured primary provider, falling back to
+ * the configured fallback provider only on a quota/rate-limit error
+ * (429/403) — an arbitrary-failure fallback would silently swap models
+ * mid-stream and reintroduce "same abstract, different score" inconsistency.
+ * On any other error it retries the same provider with backoff instead.
+ *
+ * config: { primary: "gemini"|"groq"|"openai", fallback: "gemini"|"groq"|"openai" }
+ * Defaults to gemini -> groq if no config is given (backwards compatible).
  */
-export async function reviewSection(sectionLabel, text) {
+export async function reviewSection(sectionLabel, text, config) {
   const prompt = buildPrompt(sectionLabel, text);
-  const geminiKey = process.env.GEMINI_API_KEY;
-  const groqKey = process.env.GROQ_API_KEY;
+  const primaryName = config?.primary && PROVIDERS[config.primary] ? config.primary : "gemini";
+  const fallbackName = config?.fallback && PROVIDERS[config.fallback] ? config.fallback : "groq";
+
+  const primary = PROVIDERS[primaryName];
+  const primaryKey = process.env[primary.keyEnv];
 
   let lastErr;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const verdict = await callGemini(prompt, geminiKey);
-      return { ...verdict, provider: "gemini" };
+      const verdict = await primary.call(prompt, primaryKey);
+      return { ...verdict, provider: primaryName };
     } catch (e) {
       lastErr = e;
       if (isQuotaError(e)) break; // don't waste a retry, go straight to fallback
@@ -147,9 +182,13 @@ export async function reviewSection(sectionLabel, text) {
     }
   }
 
-  if (isQuotaError(lastErr) && groqKey) {
-    const verdict = await callGroq(prompt, groqKey);
-    return { ...verdict, provider: "groq" };
+  if (isQuotaError(lastErr) && fallbackName !== primaryName) {
+    const fallback = PROVIDERS[fallbackName];
+    const fallbackKey = process.env[fallback.keyEnv];
+    if (fallbackKey) {
+      const verdict = await fallback.call(prompt, fallbackKey);
+      return { ...verdict, provider: fallbackName };
+    }
   }
 
   throw lastErr;
