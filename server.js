@@ -17,7 +17,8 @@ function corsHeaders(origin) {
 
 // ── Helper: read the caller's profile role using the RLS-scoped client ──
 async function getRole(ctx) {
-  const uid = ctx.userClaims?.id;
+  const { data: userRes } = await ctx.supabase.auth.getUser();
+  const uid = userRes?.user?.id;
   if (!uid) return null;
   const { data } = await ctx.supabase.from("profiles").select("role").eq("id", uid).single();
   return { uid, role: data?.role || "student" };
@@ -26,14 +27,8 @@ async function getRole(ctx) {
 function requireRole(allowedRoles) {
   return async (ctx) => {
     const info = await getRole(ctx);
-    if (!info) {
-      throw Object.assign(new Error("Not signed in or profile not found"), { status: 401 });
-    }
-    if (!allowedRoles.includes(info.role)) {
-      throw Object.assign(
-        new Error(`Forbidden: your role is "${info.role}", this action requires one of: ${allowedRoles.join(", ")}`),
-        { status: 403 }
-      );
+    if (!info || !allowedRoles.includes(info.role)) {
+      throw Object.assign(new Error("Forbidden"), { status: 403 });
     }
     return info;
   };
@@ -53,7 +48,8 @@ const gradeHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
     return Response.json({ error: "Section text too short to grade" }, { status: 400 });
   }
 
-  const uid = ctx.userClaims?.id;
+  const { data: userRes } = await ctx.supabase.auth.getUser();
+  const uid = userRes?.user?.id;
 
   const { data: sub } = await ctx.supabaseAdmin
     .from("submissions").select("uploader_id, ai_score, ai_status, submitted_at")
@@ -64,7 +60,8 @@ const gradeHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
 
   let verdict;
   try {
-    verdict = await reviewSection(section.label, text);
+    const { data: cfgRow } = await ctx.supabaseAdmin.from("config").select("value").eq("key", "ai_provider").maybeSingle();
+    verdict = await reviewSection(section.label, text, cfgRow?.value);
   } catch (e) {
     return Response.json({ error: "AI grading failed: " + e.message }, { status: 502 });
   }
@@ -225,9 +222,7 @@ const server = createServer(async (req, res) => {
   try {
     const fetchRes = await handler(fetchReq);
     const text = await fetchRes.text();
-    const resHeaders = Object.fromEntries(fetchRes.headers);
-    delete resHeaders["access-control-allow-origin"];
-    res.writeHead(fetchRes.status, { ...resHeaders, ...headers });
+    res.writeHead(fetchRes.status, { ...headers, ...Object.fromEntries(fetchRes.headers) });
     res.end(text);
   } catch (e) {
     const status = e.status || 500;
