@@ -1,6 +1,11 @@
 import { createServer } from "node:http";
 import { withSupabase } from "@supabase/server";
 import { reviewSection, SECTIONS } from "./grading.js";
+import { notify, notifyMany } from "./notifications.js";
+import { emailShell } from "./mailer.js";
+
+// Used to build links back into the app from inside notification emails.
+const APP_URL = process.env.APP_URL || "https://sabnahis-ste.github.io/E-TuklasOnlineChecker/";
 
 const PORT = process.env.PORT || 3000;
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
@@ -82,6 +87,32 @@ const gradeHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
   }).eq("id", submissionId);
 
   if (updateErr) return Response.json({ error: updateErr.message }, { status: 500 });
+
+  // Notify the student (in-app + email) that their AI verdict is in.
+  // Awaited so failures are logged, but a mail hiccup never turns a
+  // successful grade into a failed request (notify() itself never throws).
+  try {
+    const { data: studentProfile } = await ctx.supabaseAdmin
+      .from("profiles").select("email, full_name").eq("id", uid).single();
+    const label = section.label;
+    const statusLabel = { approved: "Approved", needs_revision: "Needs Revision", rejected: "Rejected" }[verdict.status] || verdict.status;
+    await notify(ctx.supabaseAdmin, {
+      userId: uid,
+      type: "graded",
+      title: `${label}: ${statusLabel} (${verdict.scorePercent}/100)`,
+      body: verdict.remarks,
+      submissionId,
+      email: studentProfile?.email,
+      emailHtml: emailShell(
+        `Your "${label}" section was graded: ${statusLabel}`,
+        `<p>Score: <strong>${verdict.scorePercent}/100</strong></p><p>${verdict.remarks || ""}</p>`,
+        "View feedback", APP_URL
+      )
+    });
+  } catch (e) {
+    console.error("[notify] grade notification failed:", e.message);
+  }
+
   return Response.json({ verdict });
 });
 
@@ -94,6 +125,32 @@ const teacherVerdictHandler = withSupabase({ auth: "user" }, async (req, ctx) =>
     teacher_verdict: { score, note, teacherId: info.uid, decidedAt: new Date().toISOString() }
   }).eq("id", submissionId);
   if (error) return Response.json({ error: error.message }, { status: 500 });
+
+  try {
+    const { data: sub } = await ctx.supabaseAdmin
+      .from("submissions").select("uploader_id, section_id").eq("id", submissionId).single();
+    if (sub) {
+      const { data: studentProfile } = await ctx.supabaseAdmin
+        .from("profiles").select("email").eq("id", sub.uploader_id).single();
+      const label = SECTIONS.find(s => s.id === sub.section_id)?.label || sub.section_id;
+      await notify(ctx.supabaseAdmin, {
+        userId: sub.uploader_id,
+        type: "teacher_override",
+        title: `Teacher reviewed your "${label}" section: ${score}/100`,
+        body: note,
+        submissionId,
+        email: studentProfile?.email,
+        emailHtml: emailShell(
+          `Your teacher left feedback on "${label}"`,
+          `<p>Score: <strong>${score}/100</strong></p><p>${note || ""}</p>`,
+          "View feedback", APP_URL
+        )
+      });
+    }
+  } catch (e) {
+    console.error("[notify] teacher-verdict notification failed:", e.message);
+  }
+
   return Response.json({ ok: true });
 });
 
@@ -168,6 +225,133 @@ const configHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
   return Response.json({ ok: true });
 });
 
+// ── POST /api/notify/new-submission ─────────────────────────────
+// Body: { submissionId }. Called by the frontend right after a student
+// uploads/re-uploads a section. Notifies every teacher/admin so the queue
+// doesn't rely on someone remembering to check back.
+const newSubmissionNotifyHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
+  const { data: userRes } = await ctx.supabase.auth.getUser();
+  const uid = userRes?.user?.id;
+  if (!uid) return Response.json({ error: "Not authenticated" }, { status: 401 });
+
+  const { submissionId } = await req.json();
+  const { data: sub } = await ctx.supabaseAdmin
+    .from("submissions").select("uploader_id, group_id, section_id").eq("id", submissionId).single();
+  if (!sub) return Response.json({ error: "Submission not found" }, { status: 404 });
+
+  // Caller must be the uploader or a member of the same group.
+  let authorized = sub.uploader_id === uid;
+  if (!authorized && sub.group_id) {
+    const { data: me } = await ctx.supabaseAdmin.from("profiles").select("group_id").eq("id", uid).single();
+    authorized = me?.group_id === sub.group_id;
+  }
+  if (!authorized) return Response.json({ error: "Not your submission" }, { status: 403 });
+
+  const { data: uploaderProfile } = await ctx.supabaseAdmin
+    .from("profiles").select("full_name, email").eq("id", sub.uploader_id).single();
+  const { data: teachers } = await ctx.supabaseAdmin
+    .from("profiles").select("id, email").in("role", ["teacher", "admin"]);
+
+  const label = SECTIONS.find(s => s.id === sub.section_id)?.label || sub.section_id;
+  const who = uploaderProfile?.full_name || uploaderProfile?.email || "A student";
+
+  await notifyMany(ctx.supabaseAdmin, (teachers || []).map(t => ({
+    userId: t.id,
+    type: "new_submission",
+    title: `${who} uploaded "${label}" for review`,
+    body: `Section: ${label}`,
+    submissionId,
+    email: t.email,
+    emailHtml: emailShell(
+      `New submission ready for review`,
+      `<p>${who} uploaded a new "${label}" section.</p>`,
+      "Open queue", APP_URL
+    )
+  })));
+
+  return Response.json({ ok: true, notified: (teachers || []).length });
+});
+
+// ── GET/POST /api/config/deadlines ──────────────────────────────
+// Per-section due dates, e.g. { "abstract": "2026-07-15", ... }.
+// Any authenticated user can read them (needed to show the overdue
+// banner); only teacher/admin can change them.
+const deadlinesHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
+  if (req.method === "GET") {
+    const { data } = await ctx.supabase.from("config").select("value").eq("key", "deadlines").maybeSingle();
+    return Response.json({ deadlines: data?.value || {} });
+  }
+  await requireRole(["teacher", "admin"])(ctx);
+  const deadlines = await req.json();
+  const { error } = await ctx.supabaseAdmin.from("config")
+    .upsert({ key: "deadlines", value: deadlines, updated_at: new Date().toISOString() }, { onConflict: "key" });
+  if (error) return Response.json({ error: error.message }, { status: 500 });
+  return Response.json({ ok: true });
+});
+
+// ── POST /api/cron/deadline-reminders ───────────────────────────
+// Not called by the frontend at all — point a Render Cron Job (or any
+// scheduler that can hit an HTTPS URL) at this once a day. Protected by
+// a shared secret instead of a user session since no one is logged in
+// when a cron job fires.
+//
+// Render setup: New -> Cron Job -> same repo -> schedule e.g. "0 1 * * *"
+// -> command: curl -X POST https://<your-service>.onrender.com/api/cron/deadline-reminders
+//   -H "X-Cron-Secret: $CRON_SECRET"
+// (set CRON_SECRET to the same value in both this service's env and the
+// cron job's env).
+async function deadlineReminderCron(req) {
+  const secret = req.headers.get("x-cron-secret");
+  if (!secret || secret !== process.env.CRON_SECRET) {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
+  // Built directly with supabase-js (bypassing the withSupabase wrapper,
+  // which expects a logged-in user session — a cron job has none) using
+  // the service-role key, same as ctx.supabaseAdmin uses elsewhere.
+  // NOTE: confirm these env var names match whatever @supabase/server
+  // reads internally — SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY is the
+  // standard Supabase convention, but adjust if your setup differs.
+  const { createClient } = await import("@supabase/supabase-js");
+  const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  const { data: deadlineCfg } = await supabaseAdmin.from("config").select("value").eq("key", "deadlines").maybeSingle();
+  const deadlines = deadlineCfg?.value || {};
+  const today = new Date();
+  const dueSoon = SECTIONS.filter(s => {
+    const d = deadlines[s.id];
+    if (!d) return false;
+    const days = (new Date(d) - today) / 86400000;
+    return days >= 0 && days <= 3; // remind starting 3 days out
+  });
+  if (!dueSoon.length) return Response.json({ ok: true, reminded: 0 });
+
+  const { data: allSubs } = await supabaseAdmin.from("submissions").select("uploader_id, section_id, ai_status");
+  const { data: students } = await supabaseAdmin.from("profiles").select("id, email, full_name").eq("role", "student").eq("approved", true);
+
+  let count = 0;
+  for (const student of students || []) {
+    const missing = dueSoon.filter(s => {
+      const sub = (allSubs || []).find(x => x.uploader_id === student.id && x.section_id === s.id);
+      return !sub || sub.ai_status !== "approved";
+    });
+    if (!missing.length) continue;
+    await notify(supabaseAdmin, {
+      userId: student.id,
+      type: "deadline_reminder",
+      title: `Deadline reminder: ${missing.map(m => m.label).join(", ")}`,
+      body: `These sections are due soon and not yet approved.`,
+      email: student.email,
+      emailHtml: emailShell(
+        "Sections due soon",
+        `<p>The following section(s) are due soon and not yet approved:</p><ul>${missing.map(m => `<li>${m.label}</li>`).join("")}</ul>`,
+        "Upload now", APP_URL
+      )
+    });
+    count++;
+  }
+  return Response.json({ ok: true, reminded: count });
+}
+
 const ROUTES = {
   "POST /api/grade": gradeHandler,
   "POST /api/admin/teacher-verdict": teacherVerdictHandler,
@@ -176,7 +360,11 @@ const ROUTES = {
   "POST /api/admin/bulk-delete": bulkDeleteHandler,
   "GET /api/admin/export-csv": exportCsvHandler,
   "GET /api/admin/config": configHandler,
-  "POST /api/admin/config": configHandler
+  "POST /api/admin/config": configHandler,
+  "POST /api/notify/new-submission": newSubmissionNotifyHandler,
+  "GET /api/config/deadlines": deadlinesHandler,
+  "POST /api/config/deadlines": deadlinesHandler,
+  "POST /api/cron/deadline-reminders": deadlineReminderCron
 };
 
 // ── Node http <-> Web Fetch adapter ─────────────────────────────
