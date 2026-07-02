@@ -222,7 +222,22 @@ const server = createServer(async (req, res) => {
   try {
     const fetchRes = await handler(fetchReq);
     const text = await fetchRes.text();
-    res.writeHead(fetchRes.status, { ...headers, ...Object.fromEntries(fetchRes.headers) });
+
+    // IMPORTANT: fetchRes.headers (a Fetch API Headers object) always
+    // lowercases header names when iterated. Our own `headers` object uses
+    // PascalCase keys (e.g. "Access-Control-Allow-Origin"). Spreading both
+    // into one object without normalizing case means BOTH survive as
+    // distinct keys, and res.writeHead ends up sending two separate
+    // Access-Control-Allow-Origin headers — which browsers reject outright.
+    // Strip any CORS-related headers coming from the handler's response and
+    // let our own `headers` (computed from ALLOWED_ORIGINS) always win.
+    const upstreamHeaders = Object.fromEntries(fetchRes.headers);
+    delete upstreamHeaders["access-control-allow-origin"];
+    delete upstreamHeaders["access-control-allow-headers"];
+    delete upstreamHeaders["access-control-allow-methods"];
+    delete upstreamHeaders["vary"];
+
+    res.writeHead(fetchRes.status, { ...upstreamHeaders, ...headers });
     res.end(text);
   } catch (e) {
     const status = e.status || 500;
