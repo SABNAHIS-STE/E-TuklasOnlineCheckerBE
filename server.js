@@ -66,7 +66,7 @@ const gradeHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
   let verdict;
   try {
     const { data: cfgRow } = await ctx.supabaseAdmin.from("config").select("value").eq("key", "ai_provider").maybeSingle();
-    verdict = await reviewSection(section.label, text, cfgRow?.value);
+    verdict = await reviewSection(section.id, section.label, text, cfgRow?.value);
   } catch (e) {
     return Response.json({ error: "AI grading failed: " + e.message }, { status: 502 });
   }
