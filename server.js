@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { withSupabase } from "@supabase/server";
-import { reviewSection, SECTIONS } from "./grading.js";
+import { reviewSection, detectSections, SECTIONS } from "./grading.js";
 import { notify, notifyMany } from "./notifications.js";
 import { emailShell } from "./mailer.js";
 
@@ -114,6 +114,87 @@ const gradeHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
   }
 
   return Response.json({ verdict });
+});
+
+// ── POST /api/detect-paper ───────────────────────────────────────
+// Body: { studyId, text, fileName }
+// Teacher/admin only. Splits one whole-paper upload into as many of the 13
+// known sections as can be found — heading/label matching first, then one
+// AI fallback call for whatever wasn't found that way (see detectSections()
+// in grading.js) — creates/updates a submission row per detected section
+// under the given study, and grades each one the same way a normal
+// single-section upload is graded. Sections that can't be found at all are
+// returned in `unmatched` so the teacher can still upload those by hand.
+const detectPaperHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
+  const info = await requireRole(["teacher", "admin"])(ctx);
+  const { studyId, text, fileName } = await req.json();
+  if (!studyId || !text || text.trim().length < 100) {
+    return Response.json({ error: "studyId and enough paper text are required" }, { status: 400 });
+  }
+
+  const { data: study } = await ctx.supabaseAdmin
+    .from("checker_studies").select("id, teacher_id, category").eq("id", studyId).single();
+  if (!study || study.teacher_id !== info.uid) {
+    return Response.json({ error: "Not your study" }, { status: 403 });
+  }
+
+  const { data: cfgRow } = await ctx.supabaseAdmin.from("config").select("value").eq("key", "ai_provider").maybeSingle();
+
+  let detection;
+  try {
+    detection = await detectSections(text, cfgRow?.value);
+  } catch (e) {
+    return Response.json({ error: "Section detection failed: " + e.message }, { status: 502 });
+  }
+
+  const foundIds = Object.keys(detection.sections);
+  const unmatched = SECTIONS.map(s => s.id).filter(id => !foundIds.includes(id));
+  if (!foundIds.length) {
+    return Response.json({ results: {}, matchedVia: {}, unmatched });
+  }
+
+  const results = {};
+  for (const sectionId of foundIds) {
+    const section = SECTIONS.find(s => s.id === sectionId);
+    const sectionText = detection.sections[sectionId];
+
+    const { data: existing } = await ctx.supabaseAdmin
+      .from("submissions").select("id, ai_score, ai_status, submitted_at")
+      .eq("checker_study_id", studyId).eq("section_id", sectionId).maybeSingle();
+
+    let submissionId = existing?.id;
+    let priorHistory = [];
+    if (!submissionId) {
+      const { data: created, error: insErr } = await ctx.supabaseAdmin.from("submissions").insert({
+        uploader_id: info.uid, section_id: sectionId, category: study.category,
+        checker_study_id: studyId, file_name: fileName || "Whole paper upload",
+        extracted_text: sectionText
+      }).select("id").single();
+      if (insErr) { results[sectionId] = { error: insErr.message }; continue; }
+      submissionId = created.id;
+    } else {
+      priorHistory = existing.ai_score != null
+        ? [{ score: existing.ai_score, status: existing.ai_status, submittedAt: existing.submitted_at }]
+        : [];
+      await ctx.supabaseAdmin.from("submissions").update({
+        file_name: fileName || "Whole paper upload", extracted_text: sectionText, uploader_id: info.uid
+      }).eq("id", submissionId);
+    }
+
+    try {
+      const verdict = await reviewSection(section.id, section.label, sectionText, cfgRow?.value);
+      await ctx.supabaseAdmin.from("submissions").update({
+        ai_status: verdict.status, ai_score: verdict.scorePercent, ai_criteria: verdict.criteria,
+        ai_remarks: verdict.remarks, ai_provider: verdict.provider, ai_history: priorHistory,
+        teacher_verdict: null, submitted_at: new Date().toISOString()
+      }).eq("id", submissionId);
+      results[sectionId] = { submissionId, verdict, matchedVia: detection.matchedVia[sectionId] };
+    } catch (e) {
+      results[sectionId] = { submissionId, error: "AI grading failed: " + e.message, matchedVia: detection.matchedVia[sectionId] };
+    }
+  }
+
+  return Response.json({ results, unmatched });
 });
 
 // ── POST /api/admin/teacher-verdict ─────────────────────────────
@@ -354,6 +435,7 @@ async function deadlineReminderCron(req) {
 
 const ROUTES = {
   "POST /api/grade": gradeHandler,
+  "POST /api/detect-paper": detectPaperHandler,
   "POST /api/admin/teacher-verdict": teacherVerdictHandler,
   "POST /api/admin/set-approval": setApprovalHandler,
   "POST /api/admin/set-role": setRoleHandler,
