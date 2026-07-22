@@ -390,7 +390,7 @@ const DEFAULT_CHAIN_ORDER = ["gemini", "groq", "openrouter", "mistral", "cerebra
  *   outage never fully stalls grading as long as ANY key is configured.
  * - Providers without an API key set in the environment are skipped entirely.
  */
-async function runChain(prompt, config) {
+export async function runChain(prompt, config) {
   let chain;
   if (Array.isArray(config?.chain) && config.chain.length) {
     chain = config.chain.filter(name => PROVIDERS[name]);
