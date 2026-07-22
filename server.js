@@ -459,6 +459,49 @@ async function deadlineReminderCron(req) {
   return Response.json({ ok: true, reminded: count });
 }
 
+// ── POST /api/admin/detect-ai ───────────────────────────────────
+// Body: { ids: [submissionId, ...] }
+// Teacher/admin only. Runs the AI-writing-likelihood signal (see
+// aiDetector.js) against ALREADY-UPLOADED submissions using their stored
+// extracted_text — no re-upload needed. Used for both the single
+// "Check AI signal" button and the bulk "Run AI detector on selected"
+// action. Best-effort per submission: one failure doesn't stop the batch,
+// and nothing here ever touches ai_status/ai_score/teacher_verdict.
+const detectAiHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
+  await requireRole(["teacher", "admin"])(ctx);
+  const { ids } = await req.json();
+  if (!Array.isArray(ids) || !ids.length) return Response.json({ error: "No ids given" }, { status: 400 });
+  if (ids.length > 100) return Response.json({ error: "Max 100 submissions per run" }, { status: 400 });
+
+  const { data: cfgRow } = await ctx.supabaseAdmin.from("config").select("value").eq("key", "ai_provider").maybeSingle();
+  const { data: rows, error: fetchErr } = await ctx.supabaseAdmin
+    .from("submissions").select("id, section_id, extracted_text").in("id", ids);
+  if (fetchErr) return Response.json({ error: fetchErr.message }, { status: 500 });
+
+  const results = {};
+  for (const row of rows || []) {
+    const section = SECTIONS.find(s => s.id === row.section_id);
+    if (!row.extracted_text) { results[row.id] = { error: "No stored text for this submission" }; continue; }
+    try {
+      const aiFlag = await assessAiLikelihood(section?.label || row.section_id, row.extracted_text, cfgRow?.value);
+      if (!aiFlag) {
+        results[row.id] = { skipped: "Text too short for a meaningful estimate" };
+        continue;
+      }
+      await ctx.supabaseAdmin.from("submissions").update({
+        ai_flag_likelihood: aiFlag.likelihood,
+        ai_flag_reason: aiFlag.reason,
+        ai_flag_provider: aiFlag.provider,
+        ai_flag_checked_at: aiFlag.checkedAt
+      }).eq("id", row.id);
+      results[row.id] = { aiFlag };
+    } catch (e) {
+      results[row.id] = { error: e.message };
+    }
+  }
+  return Response.json({ results });
+});
+
 const ROUTES = {
   "POST /api/grade": gradeHandler,
   "POST /api/detect-paper": detectPaperHandler,
@@ -466,6 +509,7 @@ const ROUTES = {
   "POST /api/admin/set-approval": setApprovalHandler,
   "POST /api/admin/set-role": setRoleHandler,
   "POST /api/admin/bulk-delete": bulkDeleteHandler,
+  "POST /api/admin/detect-ai": detectAiHandler,
   "GET /api/admin/export-csv": exportCsvHandler,
   "GET /api/admin/config": configHandler,
   "POST /api/admin/config": configHandler,
