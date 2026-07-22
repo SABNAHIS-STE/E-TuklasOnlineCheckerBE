@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { withSupabase } from "@supabase/server";
 import { reviewSection, detectSections, SECTIONS } from "./grading.js";
+import { assessAiLikelihood } from "./aiDetector.js";
 import { notify, notifyMany } from "./notifications.js";
 import { emailShell } from "./mailer.js";
 
@@ -75,6 +76,17 @@ const gradeHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
     ? [{ score: sub.ai_score, status: sub.ai_status, submittedAt: sub.submitted_at }]
     : [];
 
+  // Best-effort, teacher-facing-only AI-writing-likelihood estimate. This is
+  // an LLM's stylistic guess, NOT a real ZeroGPT/Turnitin/QuillBot result —
+  // see aiDetector.js. A failure here must never fail the actual grade.
+  let aiFlag = null;
+  try {
+    const { data: detectorCfgRow } = await ctx.supabaseAdmin.from("config").select("value").eq("key", "ai_provider").maybeSingle();
+    aiFlag = await assessAiLikelihood(section.label, text, detectorCfgRow?.value);
+  } catch (e) {
+    console.error("[aiDetector] assessment failed:", e.message);
+  }
+
   const { error: updateErr } = await ctx.supabaseAdmin.from("submissions").update({
     ai_status: verdict.status,
     ai_score: verdict.scorePercent,
@@ -82,6 +94,10 @@ const gradeHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
     ai_remarks: verdict.remarks,
     ai_provider: verdict.provider,
     ai_history: priorHistory,
+    ai_flag_likelihood: aiFlag?.likelihood || null,
+    ai_flag_reason: aiFlag?.reason || null,
+    ai_flag_provider: aiFlag?.provider || null,
+    ai_flag_checked_at: aiFlag?.checkedAt || null,
     teacher_verdict: null, // a new AI grade clears any stale teacher override
     submitted_at: new Date().toISOString()
   }).eq("id", submissionId);
@@ -113,7 +129,7 @@ const gradeHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
     console.error("[notify] grade notification failed:", e.message);
   }
 
-  return Response.json({ verdict });
+  return Response.json({ verdict, aiFlag });
 });
 
 // ── POST /api/detect-paper ───────────────────────────────────────
@@ -183,12 +199,22 @@ const detectPaperHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
 
     try {
       const verdict = await reviewSection(section.id, section.label, sectionText, cfgRow?.value);
+
+      let aiFlag = null;
+      try {
+        aiFlag = await assessAiLikelihood(section.label, sectionText, cfgRow?.value);
+      } catch (e) {
+        console.error("[aiDetector] assessment failed:", e.message);
+      }
+
       await ctx.supabaseAdmin.from("submissions").update({
         ai_status: verdict.status, ai_score: verdict.scorePercent, ai_criteria: verdict.criteria,
         ai_remarks: verdict.remarks, ai_provider: verdict.provider, ai_history: priorHistory,
+        ai_flag_likelihood: aiFlag?.likelihood || null, ai_flag_reason: aiFlag?.reason || null,
+        ai_flag_provider: aiFlag?.provider || null, ai_flag_checked_at: aiFlag?.checkedAt || null,
         teacher_verdict: null, submitted_at: new Date().toISOString()
       }).eq("id", submissionId);
-      results[sectionId] = { submissionId, verdict, matchedVia: detection.matchedVia[sectionId] };
+      results[sectionId] = { submissionId, verdict, aiFlag, matchedVia: detection.matchedVia[sectionId] };
     } catch (e) {
       results[sectionId] = { submissionId, error: "AI grading failed: " + e.message, matchedVia: detection.matchedVia[sectionId] };
     }
