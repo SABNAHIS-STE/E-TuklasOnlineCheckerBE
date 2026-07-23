@@ -61,7 +61,9 @@ Signals that argue AGAINST AI involvement:
 - Natural inconsistency in structure/tone across the passage
 
 Respond ONLY in this exact JSON shape, no markdown fences, no preamble:
-{"likelihood":"low"|"medium"|"high","reason":"one or two sentences, grounded in something specific you can point to in THIS text (quote or closely paraphrase it) — never a generic statement that could apply to any submission"}
+{"likelihood":"low"|"medium"|"high","confidencePercent":<multiple of 10, 0-100>,"reason":"one or two sentences, grounded in something specific you can point to in THIS text (quote or closely paraphrase it) — never a generic statement that could apply to any submission"}
+
+confidencePercent is YOUR rough self-rated confidence that this text involved AI writing, rounded to the nearest 10 (0, 10, 20 ... 100). It is a coarse gut-check, not a precise measurement — do not reason as if finer granularity than that would mean anything.
 
 SECTION TEXT:
 """
@@ -79,7 +81,10 @@ function parseDetection(raw) {
   if (!VALID_LIKELIHOODS.includes(parsed.likelihood) || typeof parsed.reason !== "string" || !parsed.reason.trim()) {
     throw new Error("AI-likelihood response missing required fields");
   }
-  return { likelihood: parsed.likelihood, reason: parsed.reason.trim() };
+  let pct = Number(parsed.confidencePercent);
+  if (!Number.isFinite(pct)) pct = null;
+  else pct = Math.min(100, Math.max(0, Math.round(pct / 10) * 10)); // clamp + force nearest-10 even if the model drifts
+  return { likelihood: parsed.likelihood, reason: parsed.reason.trim(), confidencePercent: pct };
 }
 
 /**
@@ -96,6 +101,6 @@ export async function assessAiLikelihood(sectionLabel, text, config) {
   }
   const prompt = buildDetectionPrompt(sectionLabel, text);
   const { rawText, provider } = await runChain(prompt, config);
-  const { likelihood, reason } = parseDetection(rawText);
-  return { likelihood, reason, provider, checkedAt: new Date().toISOString() };
+  const { likelihood, reason, confidencePercent } = parseDetection(rawText);
+  return { likelihood, reason, confidencePercent, provider, checkedAt: new Date().toISOString() };
 }
