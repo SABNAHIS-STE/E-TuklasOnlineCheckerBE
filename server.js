@@ -95,6 +95,7 @@ const gradeHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
     ai_provider: verdict.provider,
     ai_history: priorHistory,
     ai_flag_likelihood: aiFlag?.likelihood || null,
+    ai_flag_percent: aiFlag?.confidencePercent ?? null,
     ai_flag_reason: aiFlag?.reason || null,
     ai_flag_provider: aiFlag?.provider || null,
     ai_flag_checked_at: aiFlag?.checkedAt || null,
@@ -210,7 +211,7 @@ const detectPaperHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
       await ctx.supabaseAdmin.from("submissions").update({
         ai_status: verdict.status, ai_score: verdict.scorePercent, ai_criteria: verdict.criteria,
         ai_remarks: verdict.remarks, ai_provider: verdict.provider, ai_history: priorHistory,
-        ai_flag_likelihood: aiFlag?.likelihood || null, ai_flag_reason: aiFlag?.reason || null,
+        ai_flag_likelihood: aiFlag?.likelihood || null, ai_flag_percent: aiFlag?.confidencePercent ?? null, ai_flag_reason: aiFlag?.reason || null,
         ai_flag_provider: aiFlag?.provider || null, ai_flag_checked_at: aiFlag?.checkedAt || null,
         teacher_verdict: null, submitted_at: new Date().toISOString()
       }).eq("id", submissionId);
@@ -471,7 +472,6 @@ const detectAiHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
   await requireRole(["teacher", "admin"])(ctx);
   const { ids } = await req.json();
   if (!Array.isArray(ids) || !ids.length) return Response.json({ error: "No ids given" }, { status: 400 });
-  if (ids.length > 100) return Response.json({ error: "Max 100 submissions per run" }, { status: 400 });
 
   const { data: cfgRow } = await ctx.supabaseAdmin.from("config").select("value").eq("key", "ai_provider").maybeSingle();
   const { data: rows, error: fetchErr } = await ctx.supabaseAdmin
@@ -490,6 +490,7 @@ const detectAiHandler = withSupabase({ auth: "user" }, async (req, ctx) => {
       }
       await ctx.supabaseAdmin.from("submissions").update({
         ai_flag_likelihood: aiFlag.likelihood,
+        ai_flag_percent: aiFlag.confidencePercent ?? null,
         ai_flag_reason: aiFlag.reason,
         ai_flag_provider: aiFlag.provider,
         ai_flag_checked_at: aiFlag.checkedAt
